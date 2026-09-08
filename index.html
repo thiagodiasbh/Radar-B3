@@ -1,0 +1,3128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Radar · Compra & Venda — Painel pessoal · v1</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+
+:root{--sh-bg:#0b0e14;--sh-card:#141821;--sh-line:#242b38;--sh-txt:#e6e9ef;--sh-dim:#8b96b0;--sh-acc:#f0b429;--sh-grn:#3ecf8e;--sh-red:#f0616d}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+#sh_lock{position:fixed;inset:0;background:var(--sh-bg);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+#sh_lock .box{background:var(--sh-card);border:1px solid var(--sh-line);border-radius:16px;padding:26px 22px;max-width:400px;width:100%}
+#sh_lock h1{font-size:19px;margin:0 0 4px}
+#sh_lock p{font-size:13px;color:var(--sh-dim);line-height:1.5;margin:8px 0}
+#sh_lock input{width:100%;background:var(--sh-bg);border:1px solid var(--sh-line);color:var(--sh-txt);border-radius:9px;padding:11px 12px;font-size:16px;margin-top:8px}
+#sh_lock button{width:100%;background:var(--sh-acc);color:#1a1205;border:0;border-radius:9px;padding:12px;font-weight:700;font-size:15px;margin-top:12px;cursor:pointer}
+#sh_lock button.ghost{background:transparent;color:var(--sh-dim);border:1px solid var(--sh-line);font-weight:500}
+#sh_mig{border-top:1px solid var(--sh-line);margin-top:16px;padding-top:14px}
+#sh_mig h2{font-size:13px;color:var(--sh-acc);margin:0 0 6px}
+.sh-err{color:var(--sh-red);font-size:12.5px;margin-top:8px;min-height:1px}
+#sh_tabs{position:sticky;top:0;z-index:40;display:flex;gap:4px;background:var(--sh-bg);border-bottom:1px solid var(--sh-line);padding:8px 10px 0}
+#sh_tabs button{flex:1;background:transparent;border:0;border-bottom:2px solid transparent;color:var(--sh-dim);font-size:15px;font-weight:600;padding:12px 8px;cursor:pointer}
+#sh_tabs button.active{color:var(--sh-txt);border-bottom-color:var(--sh-acc)}
+#sh_tabs .lockbtn{flex:0 0 auto;border-bottom:none;color:var(--sh-dim);font-size:13px;font-weight:500;padding:12px 10px}
+#sh_app{display:none}
+#tab-compra,#tab-venda{padding:0}
+.sh-hidden{display:none!important}
+
+/* ===== COMPRA (escopado em #tab-compra) ===== */
+#tab-compra{
+  --bg:#0d1321;--panel:#161e30;--panel2:#1c2740;--line:#2a3654;
+  --txt:#e8ecf5;--dim:#8b96b0;--amber:#f0b429;
+  --green:#3ecf8e;--red:#f0616d;--yellow:#f0b429;--blue:#5b9dff;
+}
+#tab-compra{box-sizing:border-box;margin:0;padding:0}
+#tab-compra{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.5;padding-bottom:60px}
+#tab-compra .wrap{max-width:1080px;margin:0 auto;padding:16px}
+#tab-compra header{display:flex;align-items:baseline;gap:10px;padding:14px 0 4px;border-bottom:1px solid var(--line);margin-bottom:14px}
+#tab-compra header h1{font-size:19px;font-weight:700;letter-spacing:.3px}
+#tab-compra header h1 .dot{color:var(--amber)}
+#tab-compra header .sub{font-size:12px;color:var(--dim)}
+#tab-compra .stamp{font-size:11px;color:var(--dim);margin:6px 0 12px}
+#tab-compra .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+#tab-compra .card h2{font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--dim);margin-bottom:10px;font-weight:600}
+#tab-compra button{background:var(--amber);color:#1a1405;border:none;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:700;cursor:pointer}
+#tab-compra button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line);font-weight:500}
+#tab-compra button.mini{padding:5px 10px;font-size:12px;border-radius:6px}
+#tab-compra button.mini.on{background:var(--amber,#f0b429);color:#1a1205;font-weight:700}
+#tab-compra input[type=text], #tab-compra input[type=password]{background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:9px 12px;font-size:15px;width:100%}
+#tab-compra .row{display:flex;gap:8px;align-items:center}
+#tab-compra .notice{background:#2b2410;border:1px solid #5c4a12;border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:14px}
+#tab-compra .err{background:#33161a;border:1px solid #6b2a32;border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:14px;display:none}
+#tab-compra #c_lock{max-width:420px;margin:10vh auto;padding:0 16px}
+#tab-compra #c_lock .card{padding:24px}
+#tab-compra #c_lock h1{font-size:20px;margin-bottom:6px}
+#tab-compra #c_lock p{font-size:13px;color:var(--dim);margin-bottom:14px}
+#tab-compra #c_lock input{margin-bottom:10px;font-size:18px;letter-spacing:4px;text-align:center}
+#tab-compra .linkish{background:none;border:none;color:var(--dim);font-size:12px;text-decoration:underline;cursor:pointer;padding:6px 0;font-weight:400}
+#tab-compra .asset{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+#tab-compra .asset-head{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;flex-wrap:wrap}
+#tab-compra .asset-head .tk{font-size:16px;font-weight:800;letter-spacing:.5px;min-width:74px}
+#tab-compra .asset-head .px{font-size:15px;font-weight:600}
+#tab-compra .asset-head .chg{font-size:12px;font-weight:600}
+#tab-compra .asset-head .nm{font-size:11px;color:var(--dim);flex:1;min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tab-compra .chev{color:var(--dim);font-size:12px;transition:transform .2s;margin-left:2px}
+#tab-compra .asset.open .chev{transform:rotate(90deg)}
+#tab-compra .tap-hint{font-size:10.5px;color:var(--dim);opacity:.8}
+#tab-compra .asset.open .tap-hint{display:none}
+#tab-compra .badge{font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;letter-spacing:.4px;white-space:nowrap}
+#tab-compra .b-fav{background:rgba(62,207,142,.14);color:var(--green);border:1px solid rgba(62,207,142,.4)}
+#tab-compra .b-neu{background:rgba(240,180,41,.12);color:var(--yellow);border:1px solid rgba(240,180,41,.4)}
+#tab-compra .b-des{background:rgba(240,97,109,.12);color:var(--red);border:1px solid rgba(240,97,109,.4)}
+#tab-compra .up{color:var(--green)}
+#tab-compra .down{color:var(--red)}
+@keyframes pulseHit{0%,100%{box-shadow:0 0 0 0 rgba(62,207,142,.55)}50%{box-shadow:0 0 0 7px rgba(62,207,142,0)}}
+#tab-compra .b-hit{background:rgba(62,207,142,.22);color:var(--green);border:1px solid var(--green);animation:pulseHit 1.6s infinite}
+#tab-compra .b-near{background:rgba(91,157,255,.14);color:var(--blue);border:1px solid rgba(91,157,255,.55)}
+#tab-compra .b-far{background:rgba(139,150,176,.08);color:var(--dim);border:1px solid var(--line);font-weight:600}
+#tab-compra .errclose{float:right;background:none;border:1px solid rgba(240,97,109,.4);color:var(--red);border-radius:6px;padding:1px 7px;cursor:pointer;font-size:12px;margin-left:8px}
+#tab-compra .errclose:hover{background:rgba(240,97,109,.15)}
+#tab-compra .ibov{display:flex;flex-wrap:wrap;gap:16px;align-items:baseline;margin-bottom:10px}
+#tab-compra .ibov .pts{font-size:22px;font-weight:800;font-family:monospace;letter-spacing:.3px}
+#tab-compra .ibov .chg{font-size:14px;font-weight:700}
+#tab-compra .ibov .lab{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px}
+#tab-compra .ibov-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:8px 0 4px}
+#tab-compra .ibov-grid .kv{background:var(--panel2);border-radius:8px;padding:8px 10px}
+#tab-compra .ibov-grid .kv b{display:block;font-size:14px;font-family:monospace}
+#tab-compra .ibov-grid .kv span{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+#tab-compra canvas.ibovc{width:100%;height:80px;display:block;margin-top:4px}
+#tab-compra .ibov-note{font-size:11px;color:var(--dim);margin-top:6px;line-height:1.5}
+#tab-compra .b-low{background:rgba(57,210,192,.12);color:#39d2c0;border:1px solid rgba(57,210,192,.5)}
+#tab-compra .b-evt{background:rgba(240,180,41,.12);color:var(--yellow);border:1px solid rgba(240,180,41,.5)}
+#tab-compra .b-evt.hoje{background:rgba(240,180,41,.25);animation:pulseHit 1.6s infinite}
+#tab-compra .evtbar{border-radius:12px;padding:12px 14px;font-size:13px;margin-bottom:14px;display:none;line-height:1.7;background:rgba(240,180,41,.07);border:1px solid rgba(240,180,41,.4)}
+#tab-compra .evtbar.on{display:block}
+#tab-compra .evtbar .hoje-t{color:var(--yellow);font-weight:800}
+#tab-compra .evt-row{display:flex;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+#tab-compra .evt-row .ed{min-width:78px;font-weight:700}
+#tab-compra .evt-row .edd{min-width:86px;font-size:11px}
+#tab-compra .evt-row .et{flex:1;color:var(--dim)}
+#tab-compra .evt-row.past{opacity:.45}
+#tab-compra .evt-row .hoje-t{color:var(--yellow);font-weight:800}
+#tab-compra .evt-form{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+#tab-compra .evt-form input[type=date]{max-width:150px;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:8px 10px;font-size:13px}
+#tab-compra .evt-form input[type=text]{flex:1;min-width:160px;font-size:13px}
+#tab-compra .asset.hit{border-color:var(--green);box-shadow:0 0 0 1px rgba(62,207,142,.35)}
+#tab-compra .asset.near{border-color:rgba(91,157,255,.6)}
+#tab-compra .alertbar{border-radius:12px;padding:12px 14px;font-size:13.5px;margin-bottom:14px;display:none;line-height:1.6}
+#tab-compra .alertbar.on{display:block}
+#tab-compra .alertbar.hit{background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.5)}
+#tab-compra .alertbar.near{background:rgba(91,157,255,.08);border:1px solid rgba(91,157,255,.45)}
+#tab-compra .alertbar b{letter-spacing:.3px}
+#tab-compra .tgt-box{background:var(--panel2);border-radius:10px;padding:10px 12px;margin-top:4px}
+#tab-compra .tgt-box .row input{max-width:160px}
+#tab-compra .tgt-dist{font-size:12px;margin-top:6px;color:var(--dim)}
+#tab-compra .tgt-dist .hitc{color:var(--green);font-weight:700}
+#tab-compra .tgt-dist .nearc{color:var(--blue);font-weight:600}
+#tab-compra .asset-body{display:none;border-top:1px solid var(--line);padding:14px}
+#tab-compra .asset.open .asset-body{display:block}
+#tab-compra .meter{height:10px;background:var(--bg);border-radius:6px;overflow:hidden;margin:6px 0 4px;position:relative}
+#tab-compra .meter i{display:block;height:100%;border-radius:6px;transition:width .5s}
+#tab-compra .meter-lab{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:12px}
+#tab-compra table{width:100%;border-collapse:collapse;font-size:12.5px}
+#tab-compra td, #tab-compra th{padding:5px 6px;text-align:right;border-bottom:1px solid var(--line)}
+#tab-compra td:first-child, #tab-compra th:first-child{text-align:left}
+#tab-compra th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+#tab-compra .pts{font-weight:700}
+#tab-compra .sec-t{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:14px 0 6px;font-weight:600}
+#tab-compra .chartbox{position:relative;height:260px;margin-top:6px}
+#tab-compra canvas.schart{width:100%;height:110px;display:block}
+#tab-compra .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin:4px 0 6px}
+#tab-compra .legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+#tab-compra .rangebar{display:inline-flex;gap:6px}
+#tab-compra .rangebar button.on{background:var(--amber);color:#1a1405;border-color:var(--amber);font-weight:700}
+#tab-compra .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:6px}
+#tab-compra .kv{background:var(--panel2);border-radius:8px;padding:8px 10px}
+#tab-compra .kv b{display:block;font-size:14px}
+#tab-compra .kv span{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+#tab-compra .rm{margin-top:12px;text-align:right}
+#tab-compra details.cfg{margin-top:8px}
+#tab-compra details.cfg summary{cursor:pointer;font-size:13px;color:var(--dim);padding:6px 0}
+#tab-compra .exp h3{font-size:13px;color:var(--txt);margin:14px 0 4px;font-weight:700}
+#tab-compra .exp p{font-size:13px;color:var(--dim);margin-bottom:6px}
+#tab-compra .exp p b{color:var(--txt)}
+#tab-compra .exp table{margin:8px 0}
+#tab-compra .exp .fx{display:inline-block;min-width:52px;font-weight:800;font-size:11px;padding:2px 8px;border-radius:12px;text-align:center;margin-right:6px}
+#tab-compra .hint{font-size:12px;color:var(--dim);margin-top:8px}
+#tab-compra .hint a{color:var(--blue)}
+#tab-compra .empty{color:var(--dim);font-size:13px;padding:8px 0}
+#tab-compra .foot{font-size:11px;color:var(--dim);margin-top:18px;line-height:1.6}
+@media(max-width:560px){#tab-compra .asset-head .nm{order:5;flex-basis:100%}}
+/* ===== VENDA (escopado em #tab-venda) ===== */
+#tab-venda{
+  --bg:#0d1110; --card:#151b18; --card2:#1a221e; --line:rgba(255,255,255,.08);
+  --txt:#e9ede9; --mut:#98a29b; --dim:#6b746e;
+  --grn:#19c37d; --grn-deep:#0d8a57; --ylw:#fdc82f; --red:#f0564f; --amb:#f2a33c; --blu:#4da3ff;
+  --mono:'IBM Plex Mono',monospace; --sans:'Inter',sans-serif; --disp:'Sora',sans-serif;
+}
+#tab-venda{margin:0;padding:0;box-sizing:border-box}
+#tab-venda{background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:15px;line-height:1.55;padding:20px 16px 60px;max-width:1060px;margin:0 auto}
+#tab-venda h1{font-family:var(--disp);font-size:20px;font-weight:700;letter-spacing:-.01em}
+#tab-venda h2{font-family:var(--disp);font-size:13px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
+#tab-venda .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+#tab-venda .brand{display:flex;align-items:center;gap:10px}
+#tab-venda .logo{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--grn-deep),#0a5c3c);display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:700;font-size:13px;color:var(--ylw)}
+#tab-venda .stamp{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+#tab-venda .stamp b{color:var(--mut);font-weight:500}
+#tab-venda button{font-family:var(--sans);cursor:pointer}
+#tab-venda .btn{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500}
+#tab-venda .btn:active{transform:scale(.97)}
+#tab-venda .btn.grn{background:var(--grn-deep);border-color:transparent;color:#fff}
+#tab-venda .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:14px}
+#tab-venda .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px}
+#tab-venda .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+#tab-venda .kpi{background:var(--card2);border-radius:10px;padding:12px}
+#tab-venda .kpi .l{font-size:11.5px;color:var(--mut);margin-bottom:3px}
+#tab-venda .kpi .v{font-family:var(--mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+#tab-venda .kpi .s{font-family:var(--mono);font-size:12px;margin-top:2px}
+#tab-venda .kpi .v.sm{font-size:17px}
+#tab-venda .up{color:var(--grn)}
+#tab-venda .dn{color:var(--red)}
+#tab-venda .nt{color:var(--mut)}
+#tab-venda .wr{color:var(--amb)}
+#tab-venda .gauge-wrap{margin:6px 0 4px}
+#tab-venda .gauge{height:14px;border-radius:7px;background:linear-gradient(90deg,var(--red) 0%,var(--amb) 35%,var(--ylw) 50%,var(--grn) 100%);position:relative;opacity:.9}
+#tab-venda .needle{position:absolute;top:-5px;width:4px;height:24px;background:#fff;border-radius:2px;box-shadow:0 0 0 2px rgba(0,0,0,.4);transform:translateX(-50%);transition:left .6s ease}
+#tab-venda .gauge-lbl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:8px}
+#tab-venda .gauge-read{text-align:center;margin-top:10px;font-family:var(--disp);font-size:15px;font-weight:600}
+#tab-venda .sig{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:baseline}
+#tab-venda .sig:last-child{border-bottom:none}
+#tab-venda .dot{min-width:8px;height:8px;border-radius:50%;position:relative;top:-1px}
+#tab-venda .sig .t{font-size:13.5px}
+#tab-venda .sig .d{font-size:12px;color:var(--mut)}
+#tab-venda table{width:100%;border-collapse:collapse;font-size:13.5px}
+#tab-venda td{padding:7px 0;border-bottom:1px solid var(--line)}
+#tab-venda td:last-child{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+#tab-venda tr:last-child td{border-bottom:none}
+#tab-venda .cfg label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+#tab-venda .cfg input{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:9px 12px;font-family:var(--mono);font-size:14px}
+#tab-venda .cfg input:focus{outline:none;border-color:var(--grn-deep)}
+#tab-venda .cfg .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#tab-venda .hint{font-size:12px;color:var(--dim);margin-top:8px}
+#tab-venda .hint a{color:var(--grn)}
+#tab-venda .err{background:rgba(240,86,79,.1);border:1px solid rgba(240,86,79,.35);border-radius:10px;padding:12px 14px;font-size:13.5px;margin-top:14px;display:none}
+#tab-venda .chartbox{position:relative;height:260px;margin-top:6px}
+#tab-venda .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--mut);margin-bottom:6px}
+#tab-venda .legend span{display:flex;align-items:center;gap:5px}
+#tab-venda .sw{width:12px;height:3px;border-radius:2px}
+#tab-venda .src{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:10px}
+#tab-venda .foot{margin-top:22px;font-size:11.5px;color:var(--dim);line-height:1.6}
+#tab-venda details summary{cursor:pointer;font-family:var(--disp);font-size:13px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.08em;list-style:none}
+#tab-venda details summary::before{content:'▸ '}
+#tab-venda details[open] summary::before{content:'▾ '}
+#tab-venda .skeleton .v{color:var(--dim)}
+@media(max-width:430px){#tab-venda .cfg .row{grid-template-columns:1fr}}
+#tab-venda .evt-week{background:rgba(242,163,60,.08);border:1px solid rgba(242,163,60,.4);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:10px;display:none;line-height:1.7}
+#tab-venda .evt-week.on{display:block}
+#tab-venda .evt-week .hj{color:var(--amb);font-weight:800}
+#tab-venda .evt-row{display:flex;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+#tab-venda .evt-row .ed{min-width:52px;font-weight:700;font-family:var(--mono)}
+#tab-venda .evt-row .edd{min-width:86px;font-size:11px;color:var(--mut)}
+#tab-venda .evt-row .edd.hj{color:var(--amb);font-weight:800}
+#tab-venda .evt-row .et{flex:1;color:var(--mut)}
+#tab-venda .evt-row.past{opacity:.45}
+#tab-venda .evt-row button{background:transparent;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer}
+#tab-venda .evt-form{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+#tab-venda .evt-form input{background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:8px 10px;font-size:13px}
+#tab-venda .evt-form input[type=date]{max-width:150px}
+#tab-venda .evt-form input[type=text]{flex:1;min-width:160px}
+#tab-venda .evt-form .go{background:var(--amb);color:#1a1405;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer}
+@keyframes evtPulse{0%,100%{opacity:1}50%{opacity:.55}}
+#tab-venda .evt-week.today{animation:evtPulse 1.6s infinite}
+#tab-venda .lad-hit-bar{background:rgba(25,195,125,.10);border:1px solid rgba(25,195,125,.5);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:10px;display:none;animation:evtPulse 1.6s infinite;color:var(--grn);font-weight:700}
+#tab-venda .lad-hit-bar.on{display:block}
+#tab-venda .lad-row{display:flex;gap:8px;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap}
+#tab-venda .lad-row .lq{min-width:74px;font-weight:700;font-family:var(--mono)}
+#tab-venda .lad-row .lp{min-width:84px;font-family:var(--mono)}
+#tab-venda .lad-row .lv{min-width:86px;color:var(--mut);font-family:var(--mono);font-size:11.5px}
+#tab-venda .lad-row .ln{flex:1;color:var(--mut);min-width:140px}
+#tab-venda .lad-row .lst{min-width:92px;text-align:center;font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:12px}
+#tab-venda .lst.hit{background:rgba(25,195,125,.15);color:var(--grn);border:1px solid rgba(25,195,125,.5);animation:evtPulse 1.6s infinite}
+#tab-venda .lst.wait{background:rgba(77,163,255,.10);color:var(--blu);border:1px solid rgba(77,163,255,.4)}
+#tab-venda .lad-row button{background:transparent;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer}
+#tab-venda .lad-sum{font-size:12px;color:var(--mut);margin-top:8px}
+#tab-venda .lad-sum b{color:var(--txt)}
+#tab-venda .lad-warn{color:var(--ylw)}
+#tab-venda .errclose{float:right;background:none;border:1px solid rgba(240,97,109,.4);color:#f0616d;border-radius:6px;padding:1px 7px;cursor:pointer;font-size:12px;margin-left:8px}
+#tab-venda .errclose:hover{background:rgba(240,97,109,.15)}
+#tab-venda .ibov-head{display:flex;flex-wrap:wrap;gap:14px;align-items:baseline;margin-bottom:10px}
+#tab-venda .ibov-head .pts{font-size:22px;font-weight:800;font-family:var(--mono);letter-spacing:.3px}
+#tab-venda .ibov-head .chg{font-size:14px;font-weight:700}
+#tab-venda .ibov-head .lab{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+#tab-venda .ibov-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:6px 0}
+#tab-venda .ibov-kpis .kv{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+#tab-venda .ibov-kpis .kv b{display:block;font-size:14px;font-family:var(--mono)}
+#tab-venda .ibov-kpis .kv span{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+#tab-venda canvas.ibovc{width:100%;height:80px;display:block;margin-top:4px}
+#tab-venda .ibov-note{font-size:11px;color:var(--mut);margin-top:6px;line-height:1.5}
+#tab-venda .report-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+#tab-venda .report-table th{text-align:right;color:var(--mut);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.4px;padding:6px 7px;border-bottom:1px solid var(--line)}
+#tab-venda .report-table td{text-align:right;padding:7px;border-bottom:1px solid var(--line);font-family:var(--mono);font-variant-numeric:tabular-nums}
+#tab-venda .report-table th:first-child,#tab-venda .report-table td:first-child{text-align:left;font-family:var(--sans)}
+#tab-venda .report-table tbody tr:last-child td{border-bottom:none}
+#tab-venda .btn.sm{padding:6px 11px;font-size:12px}
+@media print{
+  body.printing-report #sh_tabs,
+  body.printing-report #sh_lock,
+  body.printing-report #tab-compra{display:none!important}
+  body.printing-report #tab-venda>*:not(#reportCard){display:none!important}
+  body.printing-report{background:#fff}
+  body.printing-report #tab-venda{max-width:none;padding:0;margin:0}
+  body.printing-report #reportCard{background:#fff;border:none;box-shadow:none;padding:0}
+  body.printing-report #reportCard *{color:#111!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.printing-report #reportCard .up{color:#0a7a45!important}
+  body.printing-report #reportCard .dn{color:#b3261e!important}
+  body.printing-report #reportCard .kpi{background:#f2f4f2!important;border:1px solid #ccc}
+  body.printing-report #reportCard .report-table th,
+  body.printing-report #reportCard .report-table td{border-bottom:1px solid #ccc!important}
+  body.printing-report #reportCard .export-btns{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<div id="sh_lock">
+  <div class="box">
+    <h1 id="sh_title">Radar · Compra & Venda</h1>
+    <p id="sh_sub">Carregando…</p>
+    <input type="password" id="sh_pin" inputmode="numeric" placeholder="PIN" autocomplete="off">
+    <input type="password" id="sh_pin2" inputmode="numeric" placeholder="repita o PIN" autocomplete="off" style="display:none">
+    <input type="text" id="sh_hint" placeholder="dica do PIN (opcional — fica visível)" autocomplete="off" style="display:none">
+    <div id="sh_hintshow" style="font-size:12px;color:var(--sh-dim);margin-top:8px;display:none"></div>
+    <div id="sh_mig" style="display:none">
+      <h2>Migrar dados dos painéis antigos</h2>
+      <p style="margin:0 0 8px">Digite o PIN de cada painel antigo para trazer seus dados. Deixe vazio para começar do zero naquele painel.</p>
+      <div id="sh_mig_compra"><input type="password" id="sh_mig_compra_pin" inputmode="numeric" placeholder="PIN do Radar de Compra antigo" autocomplete="off"></div>
+      <div id="sh_mig_venda"><input type="password" id="sh_mig_venda_pin" inputmode="numeric" placeholder="PIN do Radar de Venda antigo" autocomplete="off"></div>
+    </div>
+    <button id="sh_btn">Entrar</button>
+    <button class="ghost" id="sh_wipe_x" style="display:none">.</button>
+    <div class="sh-err" id="sh_err"></div>
+  </div>
+</div>
+
+
+<div id="sh_app">
+  <div id="sh_tabs">
+    <button id="sh_tab_compra" class="active">🎯 Compra</button>
+    <button id="sh_tab_venda">💼 Venda</button>
+    <button class="lockbtn" id="syncOpenBtn" title="Sincronização com Google Drive">☁️</button>
+    <button class="lockbtn" onclick="window.shLock&&window.shLock()">🔒</button>
+  </div>
+
+  <div id="sh_sync" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1001;align-items:center;justify-content:center;padding:20px">
+    <div style="background:var(--sh-card);border:1px solid var(--sh-line);border-radius:16px;padding:22px 20px;max-width:420px;width:100%;font-size:13px">
+      <h2 style="margin:0 0 8px;font-size:16px;color:var(--sh-txt)">☁️ Sincronizar com Google Drive</h2>
+      <p style="margin:0 0 12px;color:var(--sh-dim);line-height:1.5">Guarda uma cópia cifrada do seu cofre numa pasta privada do seu Google Drive (visível só para este app), pra abrir de outros aparelhos com o mesmo PIN. O Google nunca vê seus dados em claro — só o blob já cifrado.</p>
+      <div id="gdrive_setup">
+        <label style="display:block;font-size:11px;color:var(--sh-dim);margin-bottom:4px">Client ID do Google (OAuth)</label>
+        <input type="text" id="gClientIdInput" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:9px;border:1px solid var(--sh-line);background:var(--sh-bg);color:var(--sh-txt);font-size:14px;margin-bottom:10px">
+        <button id="gConnectBtn" style="width:100%;background:var(--sh-acc);color:#1a1205;border:0;border-radius:9px;padding:11px;font-weight:700;font-size:14px;cursor:pointer">Conectar Google Drive</button>
+      </div>
+      <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <span id="gDriveStatus" style="color:var(--sh-dim)"></span>
+        <span style="display:flex;gap:6px">
+          <button id="gSyncBtn" style="display:none;background:transparent;border:1px solid var(--sh-line);color:var(--sh-txt);border-radius:8px;padding:7px 10px;font-size:12.5px;cursor:pointer">Sincronizar agora</button>
+          <button id="gDisconnectBtn" style="display:none;background:transparent;border:1px solid var(--sh-line);color:var(--sh-red);border-radius:8px;padding:7px 10px;font-size:12.5px;cursor:pointer">Desconectar</button>
+        </span>
+      </div>
+      <button id="gCloseBtn" style="margin-top:14px;background:transparent;border:1px solid var(--sh-line);color:var(--sh-dim);border-radius:9px;padding:9px;width:100%;cursor:pointer;font-size:13px">Fechar</button>
+    </div>
+  </div>
+
+  <div id="tab-compra">
+
+<!-- ===================== TELA DE BLOQUEIO ===================== -->
+<div id="c_lock" style="display:none">
+  <div class="card">
+    <h1 id="c_lkTitle">Radar de Compra <span style="color:var(--amber)">●</span></h1>
+    <p id="c_lkMsg">Carregando…</p>
+    <input type="password" id="c_lkPin" inputmode="numeric" placeholder="PIN" autocomplete="off">
+    <input type="password" id="c_lkPin2" inputmode="numeric" placeholder="repita o PIN" autocomplete="off" style="display:none">
+    <input type="text" id="c_lkHint" placeholder="dica do PIN (opcional — fica visível, não use o próprio PIN)" autocomplete="off" style="display:none">
+    <div id="c_lkHintShow" style="font-size:12px;color:var(--dim);margin:6px 0;display:none"></div>
+    <button id="c_lkBtn" style="width:100%">Entrar</button>
+    <div id="c_lkErr" style="color:var(--red);font-size:12px;margin-top:8px;display:none"></div>
+    <button class="linkish" id="c_lkForgot" style="display:none">Esqueci o PIN (apaga tudo e recomeça)</button>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div class="wrap" id="c_app">
+  <header>
+    <h1>Radar de Compra <span class="dot">●</span></h1>
+    <span class="sub">vigia de oportunidades · v2.5</span>
+  </header>
+  <div class="stamp" id="c_stamp">—</div>
+  <div class="alertbar" id="c_alertBar"></div>
+  <div class="evtbar" id="c_evtBar"></div>
+  <div class="err" id="c_errBox"></div>
+
+  <div class="card" id="c_ibovCard">
+    <h2>Bolsa hoje · Ibovespa</h2>
+    <div class="ibov" id="c_ibovHead"><span class="lab">carregando…</span></div>
+    <canvas class="ibovc" id="c_ibovChart"></canvas>
+    <div class="ibov-grid" id="c_ibovKpis"></div>
+    <div class="ibov-note">Proxy do índice via BOVA11 (ETF que replica o Ibovespa). O plano gratuito da brapi não libera o ^BVSP direto — o BOVA11 acompanha os pontos multiplicando por ~1.000 (aproximação, não valor oficial). Sinal de direção e amplitude são fiéis; leituras de "pontos" carregam ±0,5% de tracking error.</div>
+  </div>
+
+  <div class="card" id="c_fxCard">
+    <h2>Câmbio & Cripto</h2>
+    <div class="ibov-grid" id="c_fxKpis"><div class="kv"><b>—</b><span>carregando…</span></div></div>
+    <div class="ibov-note">Dólar e euro comerciais e bitcoin em reais via AwesomeAPI (gratuita, sem chave). Variação sobre o fechamento anterior. Atualiza junto com "Atualizar cotações".</div>
+  </div>
+
+  <div class="card">
+    <h2>Adicionar ativo à vigília</h2>
+    <div class="row">
+      <input type="text" id="c_addTk" list="c_tkList" placeholder="digite para buscar — ex.: VALE, ITUB, HGLG…" style="text-transform:uppercase" autocomplete="off">
+      <datalist id="c_tkList"></datalist>
+      <button id="c_addBtn">Vigiar</button>
+    </div>
+    <div class="hint">Ações, FIIs e ETFs da B3 (dados brapi.dev). A leitura técnica é calculada só com dados de mercado, sem âncoras. Se quiser, você pode definir <b>seu próprio alvo de compra</b> dentro de cada ativo — ele serve apenas para o alerta visual e <b>nunca entra na pontuação técnica</b>.</div>
+  </div>
+
+  <div id="c_orderBar" style="display:none;margin:0 2px 8px">
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <span class="hint" style="margin:0">Ordenar por:</span>
+      <button class="mini" id="c_ordAlvo">🎯 Proximidade do alvo</button>
+      <button class="mini" id="c_ordQueda">▼ Maiores quedas</button>
+    </div>
+    <div class="hint" id="c_orderNote" style="margin:6px 0 0"></div>
+  </div>
+  <div id="c_list"></div>
+  <div class="empty" id="c_emptyMsg" style="display:none">Nenhum ativo na vigília ainda. Adicione o primeiro acima — a cada dia que você abrir o painel, um snapshot do sinal é gravado no histórico.</div>
+
+  <div class="row" style="margin:14px 0">
+    <button id="c_refreshBtn">Atualizar cotações</button>
+    <button class="ghost" id="c_lockBtn">Bloquear agora</button>
+  </div>
+
+  <details class="cfg card">
+    <summary>Importar agenda do CIO</summary>
+    <div style="margin-top:10px">
+      <div class="hint" style="margin-bottom:8px">Cole aqui (ou escolha o arquivo .json) a agenda gerada pelo Claude após a avaliação CIO. Eventos duplicados são ignorados; lembretes de ativos fora da vigília ficam guardados. A agenda pode conter um bloco "remover" que apaga eventos corrigidos (ticker + data) — a importação é autocorretiva.</div>
+      <input type="file" id="c_impFile" accept=".json,application/json" style="font-size:12px;color:var(--dim);margin-bottom:8px">
+      <textarea id="c_impTxt" rows="4" placeholder='{"eventos":[{"ticker":"VALE3","d":"2026-07-31","txt":"Teleconferência 2T26"}],"remover":[{"ticker":"SANB11","d":"2026-07-30"}]}' style="width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:9px 12px;font-size:12.5px;font-family:monospace"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="mini" id="c_impBtn">Importar</button>
+        <span class="hint" id="c_impMsg"></span>
+      </div>
+    </div>
+  </details>
+
+  <details class="cfg card">
+    <summary>Ajuste fino do termômetro (pesos e faixas — sua calibração)</summary>
+    <div class="ibov-note" style="margin:8px 0 10px">Os pesos abaixo definem quanto cada componente vale no sinal 0–100 (são normalizados automaticamente — não precisam somar 100). As faixas definem onde começam FAVORÁVEL e NEUTRO. Calibração é sua: o padrão de fábrica é só um ponto de partida, não uma recomendação.</div>
+    <div class="ibov-grid">
+      <div class="kv"><span>Desconto 52s</span><input type="number" id="c_tw_disc" min="0" max="100" style="width:100%"></div>
+      <div class="kv"><span>RSI 14</span><input type="number" id="c_tw_rsi" min="0" max="100" style="width:100%"></div>
+      <div class="kv"><span>Preço vs MM200</span><input type="number" id="c_tw_mm200" min="0" max="100" style="width:100%"></div>
+      <div class="kv"><span>Virada MM21×50</span><input type="number" id="c_tw_virada" min="0" max="100" style="width:100%"></div>
+      <div class="kv"><span>Volatilidade</span><input type="number" id="c_tw_vol" min="0" max="100" style="width:100%"></div>
+      <div class="kv"><span>FAVORÁVEL a partir de</span><input type="number" id="c_tl_fav" min="1" max="100" style="width:100%"></div>
+      <div class="kv"><span>NEUTRO a partir de</span><input type="number" id="c_tl_neu" min="0" max="99" style="width:100%"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="mini" id="c_tuneSave">Salvar calibração (no cofre)</button>
+      <button class="mini ghost" id="c_tuneReset">Restaurar padrão</button>
+      <span id="c_tuneMsg" style="font-size:11.5px;color:var(--dim)"></span>
+    </div>
+  </details>
+
+  <details class="cfg card exp">
+    <summary>Como funciona o termômetro de compra</summary>
+    <div style="margin-top:6px">
+      <p>O termômetro responde a uma única pergunta: <b>as condições técnicas de entrada estão boas agora?</b> Ele não avalia se a empresa é boa (fundamento) nem prevê o futuro — mede se o preço atual é uma janela mais interessante que a média. Filosofia: <b>comprar fraqueza com sinais de estabilização</b>, não perseguir alta. O <b>alvo de compra</b> que você pode definir por ativo serve só para o alerta visual e nunca entra nesta pontuação.</p>
+      <h3>As 5 componentes (soma = 100 pontos)</h3>
+      <table>
+        <tr><th>Componente</th><th>Máx.</th><th style="text-align:left">O que mede</th></tr>
+        <tr><td>Desconto vs. topo 52 semanas</td><td>25</td><td style="text-align:left;color:var(--dim)">30%+ abaixo do topo = 25 pts; perto do topo = 3 pts. Margem de segurança de preço.</td></tr>
+        <tr><td>RSI 14 (momentum)</td><td>25</td><td style="text-align:left;color:var(--dim)">RSI ≤ 30 (sobrevendido) = 25 pts; RSI &gt; 60 (esticado) = 0. Evita pagar pela euforia.</td></tr>
+        <tr><td>Preço vs. MM200</td><td>20</td><td style="text-align:left;color:var(--dim)">Até 15% abaixo da média longa = 20 pts (acumulação). <b>Mais</b> de 15% abaixo = 12 pts: queda violenta é "faca caindo", desconto demais vira alerta.</td></tr>
+        <tr><td>Virada de tendência (MM21 × MM50)</td><td>15</td><td style="text-align:left;color:var(--dim)">MM21 acima da MM50 = curto prazo virou (15 pts); bem abaixo = queda em curso (0). Evita comprar cedo demais.</td></tr>
+        <tr><td>Volatilidade (21 dias)</td><td>15</td><td style="text-align:left;color:var(--dim)">Vol anual ≤ 25% = 15 pts; &gt; 60% = 0. Papel que balança demais torna qualquer entrada uma loteria de curto prazo.</td></tr>
+      </table>
+      <h3>As faixas</h3>
+      <p><span class="fx" style="background:rgba(62,207,142,.14);color:var(--green)">70+</span><b>Favoráveis</b> — várias condições alinhadas ao mesmo tempo (desconto + sobrevenda + sinal de virada). Difícil de atingir de propósito; não acontece toda semana.</p>
+      <p><span class="fx" style="background:rgba(240,180,41,.12);color:var(--yellow)">45–69</span><b>Neutro / aguardar</b> — quadro misto. Acompanhe a <b>evolução do sinal</b> no gráfico do card: score subindo em direção aos 70 é janela se formando.</p>
+      <p><span class="fx" style="background:rgba(240,97,109,.12);color:var(--red)">&lt; 45</span><b>Desfavorável</b> — maioria das condições contra: papel esticado, perto do topo, ou em queda livre sem sinal de virada. Alta no dia não muda a leitura.</p>
+      <h3>Limites que você deve ter em mente</h3>
+      <p><b>1. É contrarian por construção</b> — papéis em tendência forte de alta sempre pontuam mal, mesmo que sigam subindo por meses. É escolha de filosofia (margem de segurança), não verdade universal.</p>
+      <p><b>2. Não distingue desconto de deterioração</b> — uma ação 35% abaixo do topo pode estar barata <b>ou</b> ter piorado de verdade (balanço, setor). O porquê fundamental exige análise qualitativa — leve o quadro para a conversa com o Claude antes de decidir.</p>
+      <p><b>3. Pesos e cortes são calibrações, não leis</b> — 25/25/20/15/15 e as faixas 45/70 são pontos de partida razoáveis. Se o termômetro parecer rígido ou frouxo demais com o uso, ajuste-o.</p>
+      <p><b>Selo "▼ MÍNIMA":</b> aparece quando o último fechamento é o menor da janela — mês vigente, 3 ou 6 meses (mostra a mais profunda). Calculado sobre fechamentos do arquivo acumulado; a janela de 6M só é avaliada quando o painel já guardou 126 pregões. Mínima nova é <b>informação, não recomendação</b>: pode ser oportunidade ou faca caindo — cruze com o termômetro e a virada MM21×MM50.</p>
+      <p style="margin-top:10px"><b>Regra da casa:</b> o score diz onde olhar e quando prestar atenção. A decisão de compra é sempre sua — idealmente cruzando o técnico daqui com o fundamento.</p>
+    </div>
+  </details>
+
+  <details class="cfg card">
+    <summary>Configurações</summary>
+    <div style="margin-top:10px">
+      <label style="font-size:12px;color:var(--dim)">Token brapi</label>
+      <input type="text" id="c_cTok">
+      <div class="hint">Seu token brapi já está configurado. Se precisar trocar, gere outro em <a href="https://brapi.dev/dashboard" target="_blank" rel="noopener">brapi.dev/dashboard</a>.</div>
+      <label style="font-size:12px;color:var(--dim);display:block;margin-top:12px">Margem de "perto do alvo" (%)</label>
+      <input type="text" id="c_cMargin" inputmode="decimal" style="max-width:100px">
+      <div class="hint">Quando o preço estiver até essa % acima do seu alvo, o ativo é marcado como <b>perto do alvo</b>. Padrão: 15%.</div>
+      <div style="margin-top:10px"><button class="mini" id="c_cSave">Salvar</button> <button class="mini ghost" id="c_cNotif">Ativar notificações do navegador</button></div>
+      <div class="hint" id="c_cNotifHint">Com permissão concedida, ao atualizar cotações com o painel aberto você recebe uma notificação quando um ativo entra na zona do alvo. Limitação honesta: como o painel é um arquivo local sem servidor, <b>não há alerta em segundo plano</b> — o aviso só dispara com a página aberta.</div>
+    </div>
+  </details>
+
+  <div class="foot">
+    <b>Como ler o termômetro:</b> ele mede apenas <i>condições técnicas de entrada</i> (preço, momentum, volatilidade) — não sabe de balanço, dividendos nem notícias. Sinal favorável em empresa ruim continua sendo empresa ruim. A pontuação é 100% aberta: expanda o ativo para ver de onde veio cada ponto. A decisão de compra é sempre sua.<br><br>
+    <b>Alvo de compra:</b> é opcional e 100% seu — o painel nunca sugere valor. Ele serve apenas para o alerta visual (🎯 no alvo / 👀 perto do alvo) e a linha no gráfico; <b>não entra na pontuação técnica</b>, justamente para o termômetro continuar livre de âncoras. Alvo atingido não é ordem de compra: é um lembrete para você reavaliar a tese.<br><br>
+    Dados: brapi.dev (cotações B3, atraso do plano gratuito). Seus dados ficam só neste aparelho, cifrados com AES-256-GCM. Bloqueio automático após 10 min em segundo plano.
+  </div>
+</div>
+
+
+
+</div>
+  <div id="tab-venda" class="sh-hidden">
+
+<div class="top">
+  <div class="brand">
+    <div class="logo">RV</div>
+    <div>
+      <h1>Radar de Venda</h1>
+      <div class="stamp" id="stamp">aguardando primeira atualização…</div>
+    </div>
+  </div>
+  <button class="btn grn" id="btnRefresh">Atualizar</button>
+</div>
+
+<div class="err" id="errBox"></div>
+
+<!-- CARTEIRA (posições de venda) -->
+<div class="card">
+  <h2>Minhas posições</h2>
+  <div class="stamp" id="posStamp" style="margin:-4px 0 10px">cotações atualizam ao tocar em Atualizar</div>
+  <div id="posSummary"></div>
+  <div id="posList" class="skeleton"><div class="src">carregando…</div></div>
+  <details style="margin-top:12px">
+    <summary style="cursor:pointer;font-size:13px;color:var(--acc)">+ Adicionar posição comprada</summary>
+    <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:flex-end">
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Ação (ticker)
+        <input type="text" id="pTk" list="tkList" placeholder="ex.: PETR4" style="width:96px;text-transform:uppercase" autocomplete="off"></label>
+      <datalist id="tkList"></datalist>
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Quantidade
+        <input type="number" id="pQty" placeholder="nº de ações" min="1" step="1" style="width:80px"></label>
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Preço médio (R$)
+        <input type="number" id="pPm" placeholder="quanto pagou" min="0" step="0.01" style="width:96px"></label>
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Meta de venda (R$) · opcional
+        <input type="number" id="pTgt" placeholder="alvo de saída" min="0" step="0.01" style="width:110px"></label>
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Meta de venda (%) · opcional
+        <input type="number" id="pTgtPct" placeholder="ex.: 15" min="-99" step="0.1" style="width:90px"></label>
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Stop de proteção (R$) · opcional
+        <input type="number" id="pStp" placeholder="piso de perda" min="0" step="0.01" style="width:120px"></label>
+      <button class="mini" id="pAdd" style="height:38px">Salvar</button>
+    </div>
+    <p class="hint" style="margin-top:6px">Meta e stop são opcionais e podem ser editados por ação a qualquer momento — a régua é sua, não do painel. Preencha a meta em R$ <b>ou</b> em % de lucro sobre o valor investido nesta posição (ex.: gastou R$1.600 e quer 15% de lucro → informe 15 no campo %) — o outro campo se calcula sozinho. Tudo cifrado no mesmo cofre.</p>
+  </details>
+</div>
+
+<!-- VENDAS REALIZADAS -->
+<div class="card">
+  <h2>Vendas realizadas</h2>
+  <div id="salesList"></div>
+  <details style="margin-top:12px">
+    <summary style="cursor:pointer;font-size:13px;color:var(--acc)">+ Registrar venda</summary>
+    <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:flex-end">
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Ação (ticker)
+        <input type="text" id="sTk" placeholder="ex.: PETR4" style="width:96px;text-transform:uppercase" autocomplete="off"></label>
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Quantidade vendida
+        <input type="number" id="sQty" placeholder="nº de ações" min="1" step="1" style="width:104px"></label>
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Preço de venda (R$)
+        <input type="number" id="sPx" placeholder="quanto saiu" min="0" step="0.01" style="width:104px"></label>
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Data
+        <input type="date" id="sDt" style="width:140px"></label>
+      <button class="mini" id="sAdd" style="height:38px">Registrar</button>
+    </div>
+    <p class="hint" style="margin-top:6px">Ao registrar, a quantidade é baixada automaticamente da posição e o lucro é apurado contra o preço médio dela. Venda parcial <b>não altera</b> o preço médio das ações restantes.</p>
+  </details>
+  <div class="src" style="margin-top:8px">Registro pessoal para acompanhar o ganho já embolsado — não substitui a nota de corretagem nem o cálculo oficial de IR.</div>
+</div>
+
+<!-- RELATÓRIO GERENCIAL -->
+<div class="card" id="reportCard">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:2px">
+    <h2 style="margin-bottom:0">Relatório gerencial</h2>
+    <div class="export-btns" style="display:flex;gap:8px">
+      <button class="btn" id="btnExportXlsx" type="button">⬇ XLSX</button>
+      <button class="btn" id="btnExportPdf" type="button">⬇ PDF</button>
+    </div>
+  </div>
+  <div class="stamp" id="reportStamp" style="margin:2px 0 12px"></div>
+  <div id="reportKpis" class="grid" style="margin-bottom:14px"></div>
+  <div style="overflow-x:auto">
+    <table class="report-table" id="reportTable">
+      <thead><tr>
+        <th>Ativo</th><th>Investido</th><th>Valor atual</th><th>Não realiz.</th><th>Realizado</th><th>Total</th><th>Retorno</th>
+      </tr></thead>
+      <tbody id="reportBody"></tbody>
+    </table>
+  </div>
+  <div class="src" id="reportEmpty" style="margin-top:8px"></div>
+  <div class="hint" style="margin-top:8px">"Total" soma o resultado não realizado (posição aberta, a preço de hoje) com o que já foi vendido. "Retorno" é esse total sobre o total investido no ativo (aberto + custo do que foi vendido).</div>
+</div>
+
+<!-- MACRO -->
+<div class="card">
+  <h2>Macro ao vivo — Banco Central</h2>
+  <div class="grid4 skeleton" id="macroKpis">
+    <div class="kpi"><div class="l">Selic (meta)</div><div class="v sm" id="mSelic">—</div><div class="s nt" id="mSelicD"></div></div>
+    <div class="kpi"><div class="l">CDI (a.a.)</div><div class="v sm" id="mCdi">—</div><div class="s nt" id="mCdiD"></div></div>
+    <div class="kpi"><div class="l">IPCA 12 meses</div><div class="v sm" id="mIpca">—</div><div class="s nt" id="mIpcaD"></div></div>
+    <div class="kpi"><div class="l">Dólar PTAX</div><div class="v sm" id="mPtax">—</div><div class="s nt" id="mPtaxD"></div></div>
+  </div>
+  <div class="src" id="mJuroReal"></div>
+  <div class="src" id="mTesouro"></div>
+</div>
+
+<!-- TERMÔMETRO -->
+<div class="card">
+  <h2>Bolsa hoje · Ibovespa</h2>
+  <div class="ibov-head" id="ibovHead"><span class="lab">carregando…</span></div>
+  <canvas class="ibovc" id="ibovChart"></canvas>
+  <div class="ibov-kpis" id="ibovKpis"></div>
+  <div class="ibov-note">Aproximado via BOVA11 (ETF que replica o Ibovespa) — o plano gratuito da brapi não libera o ^BVSP direto. Pontos são estimados como BOVA11 × 1.000 (±0,5% de tracking error); direção, deltas e amplitude são fiéis.</div>
+</div>
+
+<div class="card" id="fxCard">
+  <h2>Câmbio & Cripto</h2>
+  <div class="ibov-kpis" id="fxKpis"><div class="kv"><b>—</b><span>carregando…</span></div></div>
+  <div class="ibov-note">Dólar e euro comerciais e bitcoin em reais via AwesomeAPI (gratuita, sem chave). Variação sobre o fechamento anterior. Atualiza junto com o painel.</div>
+</div>
+
+<!-- AGENDA -->
+<div class="card">
+  <h2>Agenda da carteira</h2>
+  <div class="evt-week" id="evtWeek"></div>
+  <div id="evtList"><div class="hint">Sem eventos cadastrados.</div></div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center">
+    <input type="text" id="evtTk" placeholder="ticker (ex.: PETR4)" maxlength="8" style="width:110px;text-transform:uppercase" autocomplete="off">
+    <input type="date" id="evtD" style="flex:1;min-width:130px">
+    <input type="text" id="evtT" placeholder="descrição do evento" maxlength="120" style="flex:2;min-width:180px">
+    <button class="go" id="evtAdd" style="white-space:nowrap">+ Adicionar</button>
+  </div>
+  <p class="hint" style="margin-top:8px">Ticker é opcional. Lembretes ficam cifrados no cofre. Eventos passados ficam esmaecidos como registro.</p>
+  <details style="margin-top:8px">
+    <summary style="cursor:pointer;font-size:12.5px;color:var(--mut)">Importar agenda do CIO</summary>
+    <div style="margin-top:8px">
+      <input type="file" id="impFile" accept=".json,application/json" style="font-size:12px;color:var(--mut);margin-bottom:6px">
+      <textarea id="impTxt" rows="3" placeholder='{"eventos":[{"ticker":"SANB11","d":"2026-07-29","txt":"Balanço 2T26"}]}' style="width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:8px 10px;font-size:12px;font-family:var(--mono)"></textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+        <button class="go" id="impBtn" style="background:var(--amb);color:#1a1405;border:none;border-radius:8px;padding:7px 14px;font-weight:700;cursor:pointer">Importar</button>
+        <span class="hint" id="impMsg"></span>
+      </div>
+      <p class="hint" style="margin-top:6px">Eventos de qualquer ação entram neste painel; duplicados são ignorados.</p>
+    </div>
+  </details>
+</div>
+
+<!-- NOTICIAS -->
+<div class="card">
+  <h2>Radar de notícias — mercado e suas ações</h2>
+  <div style="display:flex;gap:10px;align-items:stretch;margin-bottom:10px">
+    <div class="kpi" style="flex:1"><div class="l">Humor do noticiário (heurística simples)</div><div class="v sm" id="newsMood">carregando…</div><div class="s nt" id="newsMoodD"></div></div>
+    <button class="btn" id="btnNews" style="align-self:center;white-space:nowrap">↻</button>
+  </div>
+  <button class="btn" id="btnCopyNews" style="width:100%;margin-bottom:10px">📋 Copiar p/ análise do CIO (colar no Claude)</button>
+  <div id="newsList"><div class="sig"><span class="dot" style="background:var(--dim)"></span><div class="t">Buscando manchetes…</div></div></div>
+  <div class="src">Fonte: Google News (agrega G1, InfoMoney, Valor, Reuters etc.), via proxy público. Etiquetas automáticas por palavras-chave: "mercado" é o tom geral da notícia; quando a manchete envolve petróleo, aparece também a leitura para quem tem PETR4 (petróleo subindo tende a favorecer a ação no curto prazo, e vice-versa). São heurísticas — <b>não entendem contexto completo</b>; para interpretação de verdade (ex.: "essa aquisição é boa?"), analise com seu consultor. Toque na manchete para ler a matéria original.</div>
+</div>
+
+<!-- PARECER -->
+<div class="card">
+  <h2>Parecer do CIO</h2>
+  <div id="pareView" style="font-size:13.5px;color:var(--mut)">Nenhum parecer salvo ainda. Toque em "Copiar p/ análise" no card de notícias, cole no Claude, e traga a resposta para cá.</div>
+  <details style="margin-top:12px">
+    <summary>Colar / editar parecer</summary>
+    <textarea id="pareText" rows="6" style="width:100%;margin-top:10px;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:10px 12px;font-family:var(--sans);font-size:13.5px;line-height:1.5" placeholder="Cole aqui o parecer gerado pelo Claude"></textarea>
+    <button class="btn grn" id="btnPareSave" style="margin-top:10px">Salvar parecer (cifrado)</button>
+  </details>
+</div>
+
+<!-- CONFIG -->
+<div class="card cfg">
+  <details id="cfgBox">
+    <summary>Configurações</summary>
+    <p class="hint" style="margin-bottom:10px">Quantidade, preço médio, meta e stop de cada ação agora ficam no card <b>Minhas posições</b> (botão ✎ editar por ação). Estes campos foram movidos para lá.</p>
+    <input type="hidden" id="cQty"><input type="hidden" id="cAvg"><input type="hidden" id="cTgt"><input type="hidden" id="cStp">
+    <label>Token brapi.dev (gratuito)</label>
+    <input type="text" id="cTok" value="hmqXX49px8jhzUTAAGR9A4">
+    <p class="hint">Seu token brapi já está configurado. Se um dia precisar trocar, gere outro em <a href="https://brapi.dev/dashboard" target="_blank" rel="noopener">brapi.dev/dashboard</a> e cole aqui. As séries do Banco Central não precisam de token.</p>
+    <label style="margin-top:16px">Trocar PIN (criptografia AES-256, obrigatória)</label>
+    <div class="row">
+      <div><input type="password" id="cPin" inputmode="numeric" placeholder="novo PIN, 4+ dígitos"></div>
+      <div><button class="btn" id="btnPinOn" style="width:100%">Trocar PIN</button></div>
+    </div>
+    <p class="hint" id="pinStatus"></p>
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button class="btn grn" id="btnSave">Salvar e atualizar</button>
+    </div>
+  </details>
+</div>
+
+<p class="foot">
+<b>Fontes:</b> cotações das suas ações e do Ibovespa via brapi.dev (dados B3, atraso ~15–30 min); Selic, CDI, IPCA (IBGE) e dólar PTAX via API SGS do Banco Central do Brasil; taxas do Tesouro Direto via portal oficial (quando o navegador permitir). Demonstrações financeiras da CVM não são consultáveis por navegador — para análise de balanço, use seu analista de confiança. As metas e stops que aparecem são os que <b>você</b> definiu por ação — <b>não constituem recomendação de compra ou venda</b>. Atualização automática a cada 3 horas com a página aberta; ao reabrir, atualiza na hora. Decisões de investimento são sempre suas. <b>Privacidade:</b> suas posições e configurações ficam somente neste aparelho (nada é enviado a servidores); todo acesso exige PIN e os dados são cifrados com AES-256-GCM; 10 minutos em segundo plano bloqueiam o painel de novo. O token brapi permanece legível dentro do arquivo — não compartilhe o HTML.
+</p>
+
+<div id="lock" style="position:fixed;inset:0;background:var(--bg);z-index:50;display:none;align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="width:min(340px,100%);margin-top:0">
+    <h2 id="lockTitle">Painel protegido</h2>
+    <p id="lockSub" style="font-size:13.5px;color:var(--mut);margin-bottom:12px">Digite o PIN para abrir.</p>
+    <input type="password" id="lockPin" inputmode="numeric" autocomplete="off" placeholder="PIN" style="width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:11px 12px;font-family:var(--mono);font-size:18px;text-align:center;letter-spacing:.3em">
+    <input type="password" id="lockPin2" inputmode="numeric" autocomplete="off" placeholder="confirme o PIN" style="display:none;width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:11px 12px;font-family:var(--mono);font-size:18px;text-align:center;letter-spacing:.3em;margin-top:10px">
+    <input type="text" id="lockHint" autocomplete="off" placeholder="dica do PIN (opcional — fica visível)" style="display:none;width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:9px 12px;font-size:13px;margin-top:10px">
+    <div id="lockHintShow" style="font-size:12px;color:var(--mut);margin-top:8px;display:none"></div>
+    <button class="btn grn" id="btnUnlock" style="width:100%;margin-top:12px;padding:11px">Desbloquear</button>
+    <p class="hint" id="lockMsg" style="text-align:center"></p>
+    <button class="btn" id="btnWipe" style="width:100%;margin-top:16px;font-size:12px;color:var(--dim)">Esqueci o PIN — apagar dados e recomeçar</button>
+  </div>
+</div>
+
+
+</div>
+</div>
+
+<script>
+
+// ============ SHELL: unlock único, cofre unificado, migração, abas ============
+const SH_VKEY='u_vault', SH_SKEY='u_salt', SH_LOCK_MS=10*60*1000;
+const shEnc=new TextEncoder(), shDec=new TextDecoder();
+const shB64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+const shUnb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+let SH_KEY=null;
+window.SH_STATE=null;
+async function shDeriveKey(pin,salt){
+  const km=await crypto.subtle.importKey('raw',shEnc.encode(pin),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+window.shPersist=async function(){
+  if(!SH_KEY||!window.SH_STATE)return;
+  window.SH_STATE.updatedAt=Date.now();
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},SH_KEY,shEnc.encode(JSON.stringify(window.SH_STATE)));
+  localStorage.setItem(SH_VKEY,JSON.stringify({i:shB64(iv),d:shB64(ct)}));
+  if(typeof gSyncNow==='function')gSyncNow(); // não bloqueia o salvamento local
+};
+const shId=id=>document.getElementById(id);
+const shIsSetup=()=>!localStorage.getItem(SH_VKEY);
+// detecção de cofres antigos p/ migração
+const oldCompra=()=>!!(localStorage.getItem('rc_vault')&&localStorage.getItem('rc_salt'));
+const oldVenda=()=>!!localStorage.getItem('radar_enc');
+async function migCompra(pin){
+  const salt=shUnb64(localStorage.getItem('rc_salt'));
+  const key=await shDeriveKey(pin,salt);
+  const blob=JSON.parse(localStorage.getItem('rc_vault'));
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:shUnb64(blob.i)},key,shUnb64(blob.d));
+  return JSON.parse(shDec.decode(pt));
+}
+async function migVenda(pin){
+  const o=JSON.parse(localStorage.getItem('radar_enc'));
+  const key=await shDeriveKey(pin,shUnb64(o.s));
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:shUnb64(o.i)},key,shUnb64(o.d));
+  return JSON.parse(shDec.decode(pt));
+}
+// ============ SYNC: Google Drive (appDataFolder, blob cifrado) ============
+const GDRIVE_SCOPE='https://www.googleapis.com/auth/drive.appdata';
+const GDRIVE_FILENAME='radar-vault.json';
+const GDRIVE_CID_KEY='radar_gclientid', GDRIVE_ON_KEY='radar_gconnected';
+let gTokenClient=null, gAccessToken=null, gTokenExpiry=0, gSyncing=false;
+function gClientId(){ try{return localStorage.getItem(GDRIVE_CID_KEY)||''}catch(e){return ''} }
+function gIsConnected(){ try{return localStorage.getItem(GDRIVE_ON_KEY)==='1'}catch(e){return false} }
+function gDriveStatus(msg){ const el=document.getElementById('gDriveStatus'); if(el)el.textContent=msg||''; }
+function gInitTokenClient(cid){
+  if(typeof google==='undefined'||!google.accounts||!google.accounts.oauth2)return null;
+  if(gTokenClient)return gTokenClient;
+  gTokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:cid||gClientId(), scope:GDRIVE_SCOPE,
+    callback:()=>{} // sobrescrito a cada chamada em gEnsureToken/gConnect
+  });
+  return gTokenClient;
+}
+function gEnsureToken(interactive){
+  return new Promise((resolve,reject)=>{
+    if(gAccessToken&&Date.now()<gTokenExpiry)return resolve(gAccessToken);
+    const cid=gClientId();
+    if(!cid)return reject(new Error('Client ID do Google não configurado.'));
+    const tc=gInitTokenClient(cid);
+    if(!tc)return reject(new Error('Biblioteca do Google ainda não carregou — tente de novo em instantes.'));
+    tc.callback=(resp)=>{
+      if(resp.error)return reject(new Error(resp.error));
+      gAccessToken=resp.access_token;
+      gTokenExpiry=Date.now()+((resp.expires_in||3600)*1000)-60000;
+      resolve(gAccessToken);
+    };
+    try{ tc.requestAccessToken({prompt:interactive?'consent':''}); }
+    catch(e){ reject(e); }
+  });
+}
+async function gFindFile(token){
+  const r=await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q='+encodeURIComponent("name='"+GDRIVE_FILENAME+"'")+'&fields=files(id,modifiedTime)',{headers:{Authorization:'Bearer '+token}});
+  if(!r.ok)throw new Error('Falha ao consultar o Drive (HTTP '+r.status+')');
+  const j=await r.json();
+  return (j.files&&j.files[0])||null;
+}
+async function gDownload(token,fileId){
+  const r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',{headers:{Authorization:'Bearer '+token}});
+  if(!r.ok)throw new Error('Falha ao baixar do Drive (HTTP '+r.status+')');
+  return r.text();
+}
+async function gUpload(token,fileId,content){
+  const boundary='radarbnd'+Date.now();
+  const metaObj=fileId?{name:GDRIVE_FILENAME}:{name:GDRIVE_FILENAME,parents:['appDataFolder']};
+  const body='--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(metaObj)+
+    '\r\n--'+boundary+'\r\nContent-Type: application/json\r\n\r\n'+content+'\r\n--'+boundary+'--';
+  const url=fileId
+    ?'https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=multipart'
+    :'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+  const r=await fetch(url,{method:fileId?'PATCH':'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'multipart/related; boundary='+boundary},body});
+  if(!r.ok)throw new Error('Falha ao enviar ao Drive (HTTP '+r.status+')');
+  return r.json();
+}
+// envia o estado local (já cifrado com o mesmo PIN) para o Drive
+async function gSyncNow(){
+  if(gSyncing||!SH_KEY||!window.SH_STATE||!gIsConnected())return;
+  gSyncing=true; gDriveStatus('Sincronizando…');
+  try{
+    const token=await gEnsureToken(false);
+    const raw=localStorage.getItem(SH_VKEY); // mesmo blob {i,d} já salvo localmente
+    if(!raw)throw new Error('nada salvo localmente ainda');
+    const existing=await gFindFile(token);
+    await gUpload(token,existing&&existing.id,raw);
+    gDriveStatus('Sincronizado às '+new Date().toLocaleTimeString('pt-BR'));
+  }catch(e){ gDriveStatus('Erro na sincronização: '+e.message); }
+  gSyncing=false;
+}
+// no desbloqueio: baixa do Drive, decifra com o MESMO pin, e devolve se for mais novo que o local
+async function gPullIfNewer(pin,localState){
+  if(!gIsConnected())return null;
+  try{
+    const token=await gEnsureToken(false);
+    const meta=await gFindFile(token);
+    if(!meta)return null;
+    const raw=await gDownload(token,meta.id);
+    const blob=JSON.parse(raw);
+    const salt=shUnb64(localStorage.getItem(SH_SKEY));
+    const key=await shDeriveKey(pin,salt);
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:shUnb64(blob.i)},key,shUnb64(blob.d));
+    const remoteState=JSON.parse(shDec.decode(pt));
+    const remoteT=remoteState.updatedAt||0, localT=(localState&&localState.updatedAt)||0;
+    if(remoteT>localT){ gDriveStatus('Trazido do Drive (mais recente).'); return remoteState; }
+    return null;
+  }catch(e){ gDriveStatus(''); return null; }
+}
+function gSyncPanelRefresh(){
+  const on=gIsConnected();
+  const setup=document.getElementById('gdrive_setup'), sb=document.getElementById('gSyncBtn'), db=document.getElementById('gDisconnectBtn');
+  if(setup)setup.style.display=on?'none':'block';
+  if(sb)sb.style.display=on?'inline-block':'none';
+  if(db)db.style.display=on?'inline-block':'none';
+  const cidInput=document.getElementById('gClientIdInput');
+  if(cidInput&&!on)cidInput.value=gClientId();
+  gDriveStatus(on?'Conectado ✓':'');
+}
+(function(){
+  const openBtn=document.getElementById('syncOpenBtn'), panel=document.getElementById('sh_sync'), closeBtn=document.getElementById('gCloseBtn');
+  if(openBtn)openBtn.addEventListener('click',()=>{ panel.style.display='flex'; gSyncPanelRefresh(); });
+  if(closeBtn)closeBtn.addEventListener('click',()=>{ panel.style.display='none'; });
+  const connectBtn=document.getElementById('gConnectBtn');
+  if(connectBtn)connectBtn.addEventListener('click',async()=>{
+    const cid=document.getElementById('gClientIdInput').value.trim();
+    if(!cid){alert('Cole o Client ID do Google (OAuth) primeiro.');return}
+    try{localStorage.setItem(GDRIVE_CID_KEY,cid);}catch(e){}
+    const tc=gInitTokenClient(cid);
+    if(!tc){alert('A biblioteca do Google ainda não carregou — aguarde alguns segundos e tente de novo.');return}
+    tc.callback=async(resp)=>{
+      if(resp.error){gDriveStatus('Erro ao conectar: '+resp.error);return}
+      gAccessToken=resp.access_token;
+      gTokenExpiry=Date.now()+((resp.expires_in||3600)*1000)-60000;
+      try{localStorage.setItem(GDRIVE_ON_KEY,'1');}catch(e){}
+      gSyncPanelRefresh();
+      await gSyncNow();
+    };
+    tc.requestAccessToken({prompt:'consent'});
+  });
+  const syncBtn=document.getElementById('gSyncBtn');
+  if(syncBtn)syncBtn.addEventListener('click',gSyncNow);
+  const disconnectBtn=document.getElementById('gDisconnectBtn');
+  if(disconnectBtn)disconnectBtn.addEventListener('click',()=>{
+    try{localStorage.removeItem(GDRIVE_ON_KEY);}catch(e){}
+    gAccessToken=null;
+    gSyncPanelRefresh();
+  });
+})();
+function shSetupUI(){
+  const setup=shIsSetup();
+  shId('sh_title').textContent=setup?'Crie seu PIN':'Painel protegido';
+  shId('sh_pin2').style.display=setup?'block':'none';
+  shId('sh_hint').style.display=setup?'block':'none';
+  shId('sh_btn').textContent=setup?'Criar PIN e entrar':'Desbloquear';
+  const migBox=shId('sh_mig');
+  if(setup&&(oldCompra()||oldVenda())){
+    migBox.style.display='block';
+    shId('sh_mig_compra').style.display=oldCompra()?'block':'none';
+    shId('sh_mig_venda').style.display=oldVenda()?'block':'none';
+  }else{migBox.style.display='none';}
+  if(setup){
+    shId('sh_sub').innerHTML='Um PIN só protege Compra e Venda juntos, cifrados com AES-256 neste aparelho. <b style="color:var(--sh-acc)">Não há recuperação.</b>';
+  }else{
+    shId('sh_sub').textContent='Digite seu PIN para abrir o painel.';
+    const h=localStorage.getItem('u_pin_hint');
+    if(h){shId('sh_hintshow').textContent='💡 sua dica: '+h;shId('sh_hintshow').style.display='block';}
+  }
+}
+function shErr(m){shId('sh_err').textContent=m;}
+async function shDoUnlock(){
+  const pin=shId('sh_pin').value.trim();
+  shErr('');
+  if(shIsSetup()){
+    if(pin.length<4)return shErr('O PIN precisa ter ao menos 4 dígitos.');
+    if(pin!==shId('sh_pin2').value.trim())return shErr('Os dois PINs não conferem.');
+    const salt=crypto.getRandomValues(new Uint8Array(16));
+    localStorage.setItem(SH_SKEY,shB64(salt));
+    SH_KEY=await shDeriveKey(pin,salt);
+    // migração opcional
+    let compra=null, venda=null;
+    if(oldCompra()){
+      const mp=shId('sh_mig_compra_pin').value.trim();
+      if(mp){ try{compra=await migCompra(mp);}catch(e){return shErr('PIN do Radar de Compra incorreto — nada foi migrado. Corrija ou deixe vazio.');} }
+    }
+    if(oldVenda()){
+      const mp=shId('sh_mig_venda_pin').value.trim();
+      if(mp){ try{venda=await migVenda(mp);}catch(e){return shErr('PIN do Radar de Venda incorreto — nada foi migrado. Corrija ou deixe vazio.');} }
+    }
+    window.SH_STATE={compra:compra,venda:venda};
+    const h=shId('sh_hint').value.trim();
+    if(h)localStorage.setItem('u_pin_hint',h.slice(0,80));
+    await window.shPersist();
+    shEnter();
+  }else{
+    try{
+      const salt=shUnb64(localStorage.getItem(SH_SKEY));
+      SH_KEY=await shDeriveKey(pin,salt);
+      const blob=JSON.parse(localStorage.getItem(SH_VKEY));
+      const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:shUnb64(blob.i)},SH_KEY,shUnb64(blob.d));
+      window.SH_STATE=JSON.parse(shDec.decode(pt));
+    }catch(e){ return shErr('PIN incorreto. Tente novamente.'); }
+    // se o Drive tiver uma versão mais recente (salva de outro aparelho), usa ela
+    try{
+      const remote=await gPullIfNewer(pin,window.SH_STATE);
+      if(remote){ window.SH_STATE=remote; await window.shPersist(); }
+    }catch(e){}
+    shEnter();
+  }
+}
+function shEnter(){
+  shId('sh_lock').style.display='none';
+  shId('sh_app').style.display='block';
+  shId('sh_pin').value='';shId('sh_pin2').value='';
+  try{window.__compra.onUnlock(window.SH_STATE.compra);}catch(e){console.error('compra onUnlock',e);}
+  try{window.__venda.onUnlock(window.SH_STATE.venda);}catch(e){console.error('venda onUnlock',e);}
+  shTab('compra');
+}
+window.shLock=function(){
+  SH_KEY=null;window.SH_STATE=null;
+  try{window.__compra.onLock();}catch(e){}
+  try{window.__venda.onLock();}catch(e){}
+  shId('sh_app').style.display='none';
+  shId('sh_lock').style.display='flex';
+  shSetupUI();
+  setTimeout(()=>shId('sh_pin').focus(),80);
+};
+function shTab(which){
+  shId('tab-compra').classList.toggle('sh-hidden',which!=='compra');
+  shId('tab-venda').classList.toggle('sh-hidden',which!=='venda');
+  shId('sh_tab_compra').classList.toggle('active',which==='compra');
+  shId('sh_tab_venda').classList.toggle('active',which==='venda');
+}
+// relock unificado
+let shHiddenAt=null;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){shHiddenAt=Date.now();}
+  else if(shHiddenAt&&SH_KEY&&Date.now()-shHiddenAt>SH_LOCK_MS){window.shLock();}
+});
+shId('sh_btn').onclick=shDoUnlock;
+shId('sh_pin').addEventListener('keydown',e=>{if(e.key==='Enter')shDoUnlock();});
+shId('sh_pin2').addEventListener('keydown',e=>{if(e.key==='Enter')shDoUnlock();});
+shId('sh_tab_compra').onclick=()=>shTab('compra');
+shId('sh_tab_venda').onclick=()=>shTab('venda');
+shSetupUI();
+setTimeout(()=>shId('sh_pin').focus(),80);
+
+</script>
+<script>
+/* ===== COMPRA (IIFE isolado) ===== */
+(function(){
+
+'use strict';
+// ============================================================
+// Radar de Compra v1 — watchlist com termômetro transparente
+// ============================================================
+const DEFAULT_TOKEN='hmqXX49px8jhzUTAAGR9A4';
+const VKEY='rc_vault', SKEY='rc_salt';
+const LOCK_MS=10*60*1000;
+
+// ---------------- crypto (AES-256-GCM + PBKDF2 200k) ----------------
+const enc=new TextEncoder(), dec=new TextDecoder();
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function deriveKey(pin,salt){
+  const km=await crypto.subtle.importKey('raw',enc.encode(pin),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+let KEY=null, STATE=null;
+async function saveVault(){ if(!STATE||!window.SH_STATE)return; window.SH_STATE.compra=STATE; await window.shPersist(); }
+async function loadVault(pin){
+  const salt=unb64(localStorage.getItem(SKEY));
+  const key=await deriveKey(pin,salt);
+  const blob=JSON.parse(localStorage.getItem(VKEY));
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(blob.i)},key,unb64(blob.d));
+  KEY=key; STATE=JSON.parse(dec.decode(pt));
+  migrate();
+}
+function migrate(){
+  if(!STATE.targets)STATE.targets={};
+  if(STATE.margin==null)STATE.margin=15;
+  if(!STATE.alerted)STATE.alerted={};
+  // saneia séries antigas gravadas com fechamentos inválidos (causava gráfico em branco no 1A)
+  for(const tk in (STATE.cache||{})){
+    const ind=STATE.cache[tk];
+    if(ind&&ind.series)ind.series=ind.series.filter(p=>p&&Number.isFinite(+p.c)).map(p=>({t:p.t,c:+p.c}));
+  }
+}
+async function initVault(pin){
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  localStorage.setItem(SKEY,b64(salt));
+  KEY=await deriveKey(pin,salt);
+  STATE={tickers:[],history:{},cache:{},tok:DEFAULT_TOKEN,targets:{},margin:15,alerted:{}};
+  await saveVault();
+}
+
+// ---------------- tela de bloqueio ----------------
+const $=id=>document.getElementById('c_'+id);
+const isSetup=()=>!localStorage.getItem(VKEY);
+function showLockErr(m){$('lkErr').textContent=m;$('lkErr').style.display='block'}
+function setupLockUI(){
+  if(isSetup()){
+    $('lkMsg').innerHTML='Primeiro acesso: crie um PIN (4+ dígitos). Ele cifra sua watchlist e o histórico neste aparelho com AES-256.<br><b style="color:var(--amber)">⚠ Memorize bem: NÃO existe recuperação.</b> Sem o PIN, a única saída é apagar tudo e recomeçar. Se quiser, deixe uma dica abaixo (ela fica visível fora do cofre — nunca escreva o PIN nela).';
+    $('lkPin2').style.display='block';
+    $('lkHint').style.display='block';
+    $('lkBtn').textContent='Criar PIN e começar';
+  }else{
+    $('lkMsg').textContent='Digite seu PIN para decifrar o cofre.';
+    $('lkPin2').style.display='none';
+    $('lkHint').style.display='none';
+    const hint=localStorage.getItem('rc_pin_hint');
+    if(hint){$('lkHintShow').textContent='💡 sua dica: '+hint;$('lkHintShow').style.display='block'}
+    $('lkBtn').textContent='Entrar';
+    $('lkForgot').style.display='block';
+  }
+}
+$('lkForgot').onclick=()=>{
+  if(confirm('Isso apaga PERMANENTEMENTE a watchlist e todo o histórico de sinais. Continuar?')){
+    localStorage.removeItem(VKEY);localStorage.removeItem(SKEY);location.reload();
+  }
+};
+$('lkBtn').onclick=async()=>{
+  const p=$('lkPin').value.trim();
+  if(p.length<4)return showLockErr('PIN precisa de pelo menos 4 dígitos.');
+  try{
+    if(isSetup()){
+      if(p!==$('lkPin2').value.trim())return showLockErr('Os PINs não conferem.');
+      const h=$('lkHint').value.trim();
+      if(h)localStorage.setItem('rc_pin_hint',h.slice(0,80));
+      await initVault(p);
+    }else{
+      await loadVault(p);
+    }
+    unlock();
+  }catch(e){showLockErr('PIN incorreto.')}
+};
+$('lkPin').addEventListener('keydown',e=>{if(e.key==='Enter')$('lkBtn').click()});
+$('lkPin2').addEventListener('keydown',e=>{if(e.key==='Enter')$('lkBtn').click()});
+
+// ---- autocomplete de tickers (brapi /api/available, plano grátis) ----
+let ACT_T=null,ACT_LAST='';
+$('addTk').addEventListener('input',()=>{
+  const q=$('addTk').value.trim().toUpperCase();
+  if(q.length<2||q===ACT_LAST)return;
+  clearTimeout(ACT_T);
+  ACT_T=setTimeout(async()=>{
+    ACT_LAST=q;
+    try{
+      const tok=(STATE&&STATE.tok)||DEFAULT_TOKEN;
+      const r=await fetch('https://brapi.dev/api/available?search='+encodeURIComponent(q)+'&token='+encodeURIComponent(tok));
+      if(!r.ok)return;
+      const j=await r.json();
+      const st=(j.stocks||[]).slice(0,12);
+      $('tkList').innerHTML=st.map(s=>'<option value="'+s+'">').join('');
+    }catch(_){/* autocomplete é conforto, não requisito — falha em silêncio */}
+  },350);
+});
+
+function fillTune(){
+  const T=getTune();
+  TUNE_KEYS.forEach(k=>{const el=$('tw_'+k);if(el)el.value=T.w[k]});
+  if($('tl_fav'))$('tl_fav').value=T.fav;
+  if($('tl_neu'))$('tl_neu').value=T.neu;
+}
+function bindTune(){
+  if(!$('tuneSave'))return;
+  $('tuneSave').onclick=async()=>{
+    const w={};let ok=true;
+    TUNE_KEYS.forEach(k=>{const v=parseFloat($('tw_'+k).value);if(!Number.isFinite(v)||v<0){ok=false}else w[k]=v});
+    const fav=parseFloat($('tl_fav').value),neu=parseFloat($('tl_neu').value);
+    if(!ok||!Number.isFinite(fav)||!Number.isFinite(neu)){$('tuneMsg').textContent='valores inválidos — nada foi salvo';return}
+    if(neu>=fav){$('tuneMsg').textContent='a faixa NEUTRO precisa começar abaixo da FAVORÁVEL';return}
+    if(TUNE_KEYS.reduce((s,k)=>s+w[k],0)<=0){$('tuneMsg').textContent='ao menos um peso precisa ser maior que zero';return}
+    STATE.tune={w,fav,neu};
+    await saveVault();render();
+    $('tuneMsg').textContent='✓ salvo — sinais recalculados';
+    setTimeout(()=>{$('tuneMsg').textContent=''},4000);
+  };
+  $('tuneReset').onclick=async()=>{
+    delete STATE.tune;
+    await saveVault();fillTune();render();
+    $('tuneMsg').textContent='✓ padrão restaurado';
+    setTimeout(()=>{$('tuneMsg').textContent=''},4000);
+  };
+}
+bindTune();
+function unlock(){
+  if(!STATE.events)STATE.events={}; // migracao de cofres antigos
+  if(!STATE.ibov)STATE.ibov=null;
+  if(seedEvents())saveVault(); // agenda 2T26 pré-carregada (uma vez)
+  $('cTok').value=STATE.tok||DEFAULT_TOKEN;
+  fillTune();
+  $('cMargin').value=String(STATE.margin!=null?STATE.margin:15).replace('.',',');
+  render();
+  renderIbov();
+  refreshAll();
+}
+function lockNow(){
+  KEY=null;STATE=null;
+  $('app').style.display='none';
+  $('lock').style.display='block';
+  $('lkPin').value='';$('lkErr').style.display='none';
+  $('list').innerHTML='';
+  setupLockUI();
+}
+$('lockBtn').onclick=function(){window.shLock&&window.shLock()};
+
+// ---------------- coleta brapi ----------------
+const NET_BLOCK_MSG='o navegador bloqueou a chamada de rede';
+async function brapiQuote(sym){
+  const tok=(STATE&&STATE.tok)||DEFAULT_TOKEN;
+  const ranges=['1y','6mo','3mo'];
+  let lastErr=null, netFail=false;
+  for(const rg of ranges){
+    const url='https://brapi.dev/api/quote/'+encodeURIComponent(sym)
+      +'?range='+rg+'&interval=1d&fundamental=true&token='+encodeURIComponent(tok);
+    for(let tent=0;tent<2;tent++){ // retentativa automática
+      try{
+        const r=await fetch(url);
+        if(!r.ok){lastErr=new Error('HTTP '+r.status);break}
+        const js=await r.json();
+        const q=js.results&&js.results[0];
+        if(q&&q.historicalDataPrice&&q.historicalDataPrice.length>30)return q;
+        lastErr=new Error('resposta sem histórico suficiente');break;
+      }catch(e){
+        netFail=true;lastErr=e;
+        await new Promise(res=>setTimeout(res,600));
+      }
+    }
+    if(lastErr&&/HTTP 40[13]/.test(lastErr.message))break;
+  }
+  if(netFail&&lastErr&&/failed to fetch|networkerror|load failed/i.test(String(lastErr.message)))
+    throw new Error(NET_BLOCK_MSG);
+  throw lastErr||new Error('falha na consulta');
+}
+
+// ---------------- indicadores ----------------
+const sma=(a,n)=>a.length>=n?a.slice(-n).reduce((s,v)=>s+v,0)/n:null;
+function rsi14(cl){
+  if(cl.length<15)return null;
+  let g=0,l=0;
+  for(let i=cl.length-14;i<cl.length;i++){
+    const d=cl[i]-cl[i-1];
+    if(d>0)g+=d;else l-=d;
+  }
+  if(l===0)return 100;
+  return 100-100/(1+(g/14)/(l/14));
+}
+function volAnn(cl){
+  if(cl.length<22)return null;
+  const r=[];
+  for(let i=cl.length-21;i<cl.length;i++)r.push(Math.log(cl[i]/cl[i-1]));
+  const m=r.reduce((s,v)=>s+v,0)/r.length;
+  const sd=Math.sqrt(r.reduce((s,v)=>s+(v-m)*(v-m),0)/(r.length-1));
+  return sd*Math.sqrt(252)*100;
+}
+
+// ---------------- termômetro de compra (0–100, critérios abertos) ----------------
+const TUNE_KEYS=['disc','rsi','mm200','virada','vol'];
+const TUNE_DEF={w:{disc:25,rsi:25,mm200:20,virada:15,vol:15},fav:70,neu:45};
+function getTune(){
+  const t=(typeof STATE!=='undefined'&&STATE&&STATE.tune)||{};
+  const w=Object.assign({},TUNE_DEF.w,t.w||{});
+  return{w,fav:(t.fav!=null?+t.fav:TUNE_DEF.fav),neu:(t.neu!=null?+t.neu:TUNE_DEF.neu)};
+}
+function buyScore(ind){
+  const it=[];
+  // 1. desconto vs topo 52s (25)
+  let p,why;
+  const disc=ind.hi52?100*(ind.hi52-ind.px)/ind.hi52:null;
+  if(disc==null){p=0;why='topo 52s indisponível'}
+  else if(disc>=30){p=25;why=disc.toFixed(0)+'% abaixo do topo — desconto grande'}
+  else if(disc>=20){p=18;why=disc.toFixed(0)+'% abaixo do topo'}
+  else if(disc>=10){p=10;why=disc.toFixed(0)+'% abaixo do topo — desconto moderado'}
+  else{p=3;why='a '+disc.toFixed(0)+'% do topo — pouco desconto'}
+  it.push({n:'Desconto vs. topo 52 semanas',p,max:25,why});
+  // 2. RSI14 (25)
+  const r=ind.rsi;
+  if(r==null){p=0;why='RSI indisponível'}
+  else if(r<=30){p=25;why='RSI '+r.toFixed(0)+' — sobrevendido'}
+  else if(r<=40){p=18;why='RSI '+r.toFixed(0)+' — pressão vendedora forte'}
+  else if(r<=50){p=12;why='RSI '+r.toFixed(0)+' — levemente fraco'}
+  else if(r<=60){p=6;why='RSI '+r.toFixed(0)+' — neutro'}
+  else{p=0;why='RSI '+r.toFixed(0)+' — esticado para cima'}
+  it.push({n:'RSI 14 (momentum)',p,max:25,why});
+  // 3. posição vs MM200 (20)
+  if(ind.mm200==null){p=0;why='MM200 indisponível (histórico curto no plano grátis)'}
+  else{
+    const d=100*(ind.px-ind.mm200)/ind.mm200;
+    if(d<-15){p=12;why=Math.abs(d).toFixed(0)+'% abaixo da MM200 — barato, mas queda forte (risco de faca caindo)'}
+    else if(d<0){p=20;why=Math.abs(d).toFixed(0)+'% abaixo da MM200 — zona de acumulação'}
+    else if(d<=10){p=10;why=d.toFixed(0)+'% acima da MM200 — tendência saudável, preço justo'}
+    else{p=4;why=d.toFixed(0)+'% acima da MM200 — esticado da média longa'}
+  }
+  it.push({n:'Preço vs. MM200',p,max:20,why});
+  // 4. virada de curto prazo (15)
+  if(ind.mm21==null||ind.mm50==null){p=0;why='médias curtas indisponíveis'}
+  else if(ind.mm21>ind.mm50){p=15;why='MM21 acima da MM50 — curto prazo virou para cima'}
+  else if(ind.mm21>=ind.mm50*0.97){p=8;why='MM21 se aproximando da MM50 — possível virada'}
+  else{p=0;why='MM21 bem abaixo da MM50 — curto prazo ainda caindo'}
+  it.push({n:'Virada de tendência (MM21 × MM50)',p,max:15,why});
+  // 5. volatilidade (15)
+  const v=ind.vol;
+  if(v==null){p=0;why='volatilidade indisponível'}
+  else if(v<=25){p=15;why='vol. anualizada '+v.toFixed(0)+'% — comportada'}
+  else if(v<=40){p=10;why='vol. anualizada '+v.toFixed(0)+'% — moderada'}
+  else if(v<=60){p=5;why='vol. anualizada '+v.toFixed(0)+'% — alta'}
+  else{p=0;why='vol. anualizada '+v.toFixed(0)+'% — muito alta, entrada arriscada'}
+  it.push({n:'Volatilidade (21 dias)',p,max:15,why});
+  // aplica a calibração pessoal (pesos normalizados para escala 0–100)
+  const T=getTune();
+  const sw=TUNE_KEYS.reduce((s,k)=>s+Math.max(0,+T.w[k]||0),0)||100;
+  it.forEach((x,i)=>{
+    const wk=Math.max(0,+T.w[TUNE_KEYS[i]]||0),f=100/sw;
+    x.p=Math.round(x.p/x.max*wk*f);
+    x.max=Math.round(wk*f);
+  });
+  const total=it.reduce((s,x)=>s+x.p,0);
+  return {total,items:it};
+}
+function scoreLabel(t){
+  const T=getTune();
+  if(t>=T.fav)return{txt:'CONDIÇÕES FAVORÁVEIS',cls:'b-fav',col:'var(--green)'};
+  if(t>=T.neu)return{txt:'NEUTRO — AGUARDAR',cls:'b-neu',col:'var(--yellow)'};
+  return{txt:'DESFAVORÁVEL',cls:'b-des',col:'var(--red)'};
+}
+
+// ---------------- agenda de eventos por ativo ----------------
+// Agenda 2T26 pré-carregada (fontes: RI das empresas / calendários da temporada,
+// consultados em 16/07/2026 — empresas podem remarcar). Entra no cofre uma única
+// vez por ticker+data; o que você já cadastrou manualmente não é duplicado.
+const SEED_EVENTS={ // auditado em 24/07/2026 — 2+ fontes por data, primária quando disponível
+  VALE3:[{d:'2026-07-21',txt:'Relatório de produção e vendas 2T26, após o fechamento (já divulgado)'},
+         {d:'2026-07-30',txt:'Balanço 2T26 + possível anúncio de dividendos — após o fechamento (site da Vale, primária)'},
+         {d:'2026-07-31',txt:'Teleconferência 2T26 — 11h Brasília (site da Vale, primária)'}],
+  WEGE3:[{d:'2026-07-22',txt:'Balanço 2T26 (já divulgado — teste da tese: margens e inflexão no 2S26)'}],
+  SANB11:[{d:'2026-07-29',txt:'Balanço 2T26 — antes da abertura (comunicado da cia. 26/06 + 3 fontes; calendário XP divergia p/ 30/07)'}],
+  BBDC4:[{d:'2026-07-30',txt:'Balanço 2T26 — HIPÓTESE 1 (calendários InfoMoney/SpaceMoney antigos); fontes divergem — confirmar no RI'},
+         {d:'2026-08-05',txt:'Balanço 2T26 — HIPÓTESE 2 (BB Investalk + Seu Dinheiro, mais recentes); fontes divergem — confirmar no RI'}],
+  ABEV3:[{d:'2026-07-30',txt:'Balanço 2T26 (3 fontes concordantes — horário a confirmar no RI)'}],
+  ITUB4:[{d:'2026-08-04',txt:'Balanço 2T26 (3 fontes concordantes — horário a confirmar no RI)'}],
+  BBAS3:[{d:'2026-08-12',txt:'Balanço 2T26 (3 fontes; atenção: pressão do agro na inadimplência)'}],
+  JBSS3:[{d:'2026-08-10',txt:'Balanço 2T26 (comunicado SEC/6-K da JBS, primária)'},
+         {d:'2026-08-11',txt:'Teleconferência 2T26 (comunicado SEC/6-K da JBS, primária)'}],
+  SUZB3:[{d:'2026-08-12',txt:'Balanço 2T26 — após o fechamento (4 fontes concordantes)'}],
+  ITSA4:[{d:'2026-08-10',txt:'Balanço 2T26 (ATENÇÃO: 1 fonte apenas, BB Investalk — confirmar no RI da Itaúsa)'}],
+  B3SA3:[{d:'2026-08-06',txt:'Balanço 2T26 — HIPÓTESE 1 (InfoMoney/SpaceMoney); fontes divergem — confirmar no RI'},
+         {d:'2026-08-11',txt:'Balanço 2T26 — HIPÓTESE 2, após o fechamento (Inter + BB Investalk); fontes divergem — confirmar no RI'}]
+};
+function seedEvents(){
+  if(!STATE.events)STATE.events={};
+  let mudou=false;
+  for(const tk in SEED_EVENTS){
+    if(!STATE.events[tk])STATE.events[tk]=[];
+    for(const ev of SEED_EVENTS[tk]){
+      if(!STATE.events[tk].some(e=>e.d===ev.d)){STATE.events[tk].push({d:ev.d,txt:ev.txt});mudou=true}
+    }
+  }
+  return mudou;
+}
+
+function hojeStr(){return new Date().toISOString().slice(0,10)}
+function diasAte(d){ // dias corridos ate a data (0=hoje, negativo=passado)
+  const a=new Date(hojeStr()+'T00:00:00Z'), b=new Date(d+'T00:00:00Z');
+  return Math.round((b-a)/86400000);
+}
+function fmtDia(d){const p=d.split('-');return p[2]+'/'+p[1]}
+function rotDias(n){
+  if(n===0)return 'HOJE';
+  if(n===1)return 'amanhã';
+  if(n>1)return 'em '+n+' dias';
+  return 'há '+(-n)+' dia'+(n<-1?'s':'');
+}
+function eventosDe(tk){return (STATE.events&&STATE.events[tk])||[]}
+function proxEvento(tk){ // proximo evento futuro (ate 7 dias) para o selo do card
+  const fut=eventosDe(tk).map(e=>({...e,n:diasAte(e.d)})).filter(e=>e.n>=0&&e.n<=7).sort((a,b)=>a.n-b.n);
+  return fut[0]||null;
+}
+function renderEventsBar(){
+  const bar=$('evtBar');if(!bar)return;
+  const rows=[];
+  for(const tk of STATE.tickers)
+    for(const e of eventosDe(tk)){
+      const n=diasAte(e.d);
+      if(n>=0&&n<=7)rows.push({tk,d:e.d,txt:e.txt,n});
+    }
+  rows.sort((a,b)=>a.n-b.n||a.tk.localeCompare(b.tk));
+  if(!rows.length){bar.className='evtbar';bar.innerHTML='';return}
+  bar.className='evtbar on';
+  bar.innerHTML='<b>📅 Agenda da semana</b><br>'+rows.map(r=>
+    '<b>'+r.tk+'</b> · '+fmtDia(r.d)+' — '+r.txt+' <span class="'+(r.n===0?'hoje-t':'')+'" style="white-space:nowrap">('+rotDias(r.n)+')</span>'
+  ).join('<br>');
+}
+
+// ---------------- mínimas de janela (6M / 3M / mês vigente) ----------------
+// Calculadas sobre FECHAMENTOS do arquivo local acumulado (o plano grátis
+// não fornece mínimas intradiárias). Janela só é avaliada se o arquivo a cobre.
+function lowWindows(S){
+  const n=S?S.length:0;if(n<2)return[];
+  const out=[];
+  for(const d of [{lbl:'6M',bars:126},{lbl:'3M',bars:63},{lbl:'30d',bars:30}]){
+    if(n>=d.bars){
+      let mn=Infinity;
+      for(let i=n-d.bars;i<n;i++)if(S[i].c<mn)mn=S[i].c;
+      out.push({lbl:d.lbl,min:mn});
+    }
+  }
+  return out;
+}
+function lowStatus(ind){
+  const S=(ind&&ind.series)||[];if(S.length<2)return null;
+  const last=S[S.length-1].c;
+  const ws=lowWindows(S);
+  for(const lbl of ['6M','3M','30d']){
+    const w=ws.find(x=>x.lbl===lbl);
+    if(w&&last<=w.min+1e-9)return lbl;
+  }
+  return null;
+}
+
+// ---------------- alvo de compra (separado do score técnico) ----------------
+function parseNum(s){
+  if(s==null)return null;
+  let t=String(s).trim();
+  if(t.includes(','))t=t.replace(/\./g,'').replace(',','.'); // formato BR: 1.234,56
+  const v=parseFloat(t);
+  return isFinite(v)&&v>0?v:null;
+}
+function targetStatus(tk,ind){
+  const alvo=STATE.targets&&STATE.targets[tk];
+  if(alvo==null||!ind||ind.px==null)return null;
+  const mg=(STATE.margin!=null?STATE.margin:15)/100;
+  const dist=100*(ind.px-alvo)/alvo; // % acima do alvo (negativo = abaixo)
+  if(ind.px<=alvo)return{st:'hit',alvo,dist};
+  if(ind.px<=alvo*(1+mg))return{st:'near',alvo,dist};
+  return{st:'far',alvo,dist};
+}
+function renderAlertBar(){
+  const bar=$('alertBar');
+  const hits=[],nears=[];
+  for(const tk of STATE.tickers){
+    const ts=targetStatus(tk,STATE.cache[tk]);
+    if(!ts)continue;
+    if(ts.st==='hit')hits.push(tk+' ('+fmtR(STATE.cache[tk].px)+' ≤ alvo '+fmtR(ts.alvo)+')');
+    else if(ts.st==='near')nears.push(tk+' (a '+ts.dist.toFixed(1)+'% do alvo '+fmtR(ts.alvo)+')');
+  }
+  if(!hits.length&&!nears.length){bar.className='alertbar';bar.innerHTML='';return}
+  bar.className='alertbar on '+(hits.length?'hit':'near');
+  let html='';
+  if(hits.length)html+='🎯 <b>NO ALVO:</b> '+hits.join(' · ');
+  if(nears.length)html+=(hits.length?'<br>':'')+'👀 <b>Perto do alvo:</b> '+nears.join(' · ');
+  html+='<br><span style="font-size:11.5px;color:var(--dim)">Alvo definido por você — verifique fundamentos e notícias antes de agir. A decisão é sempre sua.</span>';
+  bar.innerHTML=html;
+}
+
+// ---------------- watchlist ----------------
+$('addBtn').onclick=async()=>{
+  const tk=$('addTk').value.trim().toUpperCase();
+  if(!tk)return;
+  if(!/^[A-Z0-9]{4,8}$/.test(tk))return showErr('Ticker inválido. Use o código da B3, ex.: VALE3, HGLG11.');
+  if(STATE.tickers.includes(tk))return showErr(tk+' já está na vigília.');
+  $('addBtn').disabled=true;$('addBtn').textContent='Verificando…';
+  try{
+    const q=await brapiQuote(tk);
+    STATE.tickers.push(tk);
+    STATE.cache[tk]=compact(q,STATE.cache[tk]);
+    snapshot(tk,STATE.cache[tk]);
+    await saveVault();
+    $('addTk').value='';hideErr();render();
+  }catch(e){
+    if(e.message===NET_BLOCK_MSG){
+      showErr('<b>O navegador bloqueou a chamada à brapi.</b> Isso acontece quando o painel roda dentro de uma pré-visualização (ex.: preview do Claude), que não permite chamadas externas.<br><b>Solução:</b> baixe este arquivo HTML e abra direto no navegador (Chrome, Safari, Edge). Suas configurações e histórico ficam no navegador em que você usar.');
+    }else{
+      showErr('Não encontrei <b>'+tk+'</b> na brapi ('+e.message+'). Confira o código ou se o plano gratuito cobre esse ativo.');
+    }
+  }
+  $('addBtn').disabled=false;$('addBtn').textContent='Vigiar';
+};
+$('addTk').addEventListener('keydown',e=>{if(e.key==='Enter')$('addBtn').click()});
+
+function compact(q,prev){
+  const fresh=(q.historicalDataPrice||[]).filter(x=>x&&Number.isFinite(+x.close)&&x.date).map(x=>({t:x.date,c:+x.close}));
+  // ARQUIVO LOCAL: o plano gratuito da brapi entrega ~3 meses por chamada;
+  // fundimos cada coleta com a série já salva (1 candle por dia de pregão)
+  // e o painel constrói o próprio histórico de até ~13 meses com o uso.
+  const dayOf=t=>new Date(t*1000).toISOString().slice(0,10);
+  const byDay={};
+  if(prev&&Array.isArray(prev.series))
+    for(const p of prev.series)
+      if(p&&p.t&&Number.isFinite(+p.c))byDay[dayOf(p.t)]={t:p.t,c:+p.c};
+  for(const p of fresh)byDay[dayOf(p.t)]=p;
+  const series=Object.values(byDay).sort((a,b)=>a.t-b.t).slice(-280);
+  const closes=series.map(p=>p.c);
+  const px=q.regularMarketPrice!=null?q.regularMarketPrice:closes[closes.length-1];
+  const ind={
+    px, name:q.longName||q.shortName||'',
+    chg:q.regularMarketChangePercent!=null?q.regularMarketChangePercent:null,
+    mm21:sma(closes,21),mm50:sma(closes,50),mm200:sma(closes,200),
+    rsi:rsi14(closes),vol:volAnn(closes),
+    hi52:q.fiftyTwoWeekHigh||Math.max(...closes),
+    lo52:q.fiftyTwoWeekLow||Math.min(...closes),
+    series,
+    at:new Date().toISOString()
+  };
+  return ind;
+}
+function snapshot(tk,ind){
+  const s=buyScore(ind);
+  const today=new Date().toISOString().slice(0,10);
+  if(!STATE.history[tk])STATE.history[tk]=[];
+  const h=STATE.history[tk];
+  const entry={d:today,px:ind.px,rsi:ind.rsi==null?null:+ind.rsi.toFixed(1),sc:s.total,lb:scoreLabel(s.total).txt};
+  if(h.length&&h[h.length-1].d===today)h[h.length-1]=entry;else h.push(entry);
+  if(h.length>90)STATE.history[tk]=h.slice(-90);
+}
+
+// ---------------- Ibovespa (proxy BOVA11) ----------------
+async function loadIbov(){
+  try{
+    const q = await brapiQuote('BOVA11');
+    STATE.ibov = compact(q, STATE.ibov);
+    renderIbov();
+    await saveVault();
+  }catch(e){
+    document.getElementById('c_ibovHead').innerHTML = '<span class="lab" style="color:var(--red)">Ibovespa indisponível — '+e.message+'</span>';
+  }
+}
+function renderIbov(){
+  const d = STATE.ibov;
+  if(!d || !d.series || d.series.length<2){
+    document.getElementById('c_ibovHead').innerHTML = '<span class="lab">sem dados salvos ainda — toque em Atualizar</span>';
+    return;
+  }
+  const S = d.series;
+  const px = d.px;
+  const pts = px * 1000; // aproximação: BOVA11 × 1000 ≈ Ibovespa
+  const chg = d.chg;
+  const arrow = chg >= 0 ? '▲' : '▼';
+  const cls = chg >= 0 ? 'up' : 'down';
+
+  // deltas de janela
+  const closes = S.map(p=>p.c);
+  const idx = (dias) => closes.length > dias ? closes.length-1-dias : 0;
+  const delta = (dias) => {
+    const i = idx(dias);
+    return closes.length>i ? (px/closes[i]-1)*100 : null;
+  };
+  const d5 = delta(5), d21 = delta(21), d63 = delta(63);
+
+  // max/min do arquivo
+  const hi = Math.max(...closes), lo = Math.min(...closes);
+  const distHi = (px/hi-1)*100;
+  const distLo = (px/lo-1)*100;
+
+  // maior queda contínua (drawdown máximo no arquivo)
+  let peak = closes[0], mddPct = 0, mddPeakIdx = 0, mddTroughIdx = 0, curPeakIdx = 0;
+  for(let i=0;i<closes.length;i++){
+    if(closes[i]>peak){peak = closes[i]; curPeakIdx = i}
+    const dd = (closes[i]/peak-1)*100;
+    if(dd < mddPct){mddPct = dd; mddPeakIdx = curPeakIdx; mddTroughIdx = i}
+  }
+  const mddDias = mddTroughIdx - mddPeakIdx;
+
+  const fmtPct = v => v==null?'—':(v>=0?'+':'')+v.toFixed(2)+'%';
+  const fmtPts = v => Math.round(v).toLocaleString('pt-BR');
+
+  document.getElementById('c_ibovHead').innerHTML =
+    '<span class="pts">'+fmtPts(pts)+' pts</span>'
+    +'<span class="chg '+cls+'">'+arrow+' '+fmtPct(chg)+' hoje</span>'
+    +'<span class="lab">'+d.name+' · fechamento ' + new Date(d.at).toLocaleDateString('pt-BR')+'</span>';
+
+  document.getElementById('c_ibovKpis').innerHTML =
+    '<div class="kv"><b class="'+((d5||0)>=0?'up':'down')+'">'+fmtPct(d5)+'</b><span>últimos 5 pregões</span></div>'
+    +'<div class="kv"><b class="'+((d21||0)>=0?'up':'down')+'">'+fmtPct(d21)+'</b><span>últimos 21 (1 mês)</span></div>'
+    +'<div class="kv"><b class="'+((d63||0)>=0?'up':'down')+'">'+fmtPct(d63)+'</b><span>últimos 63 (3 meses)</span></div>'
+    +'<div class="kv"><b>'+fmtPct(distHi)+'</b><span>vs. topo do arquivo</span></div>'
+    +'<div class="kv"><b>'+fmtPct(distLo)+'</b><span>vs. mínima do arquivo</span></div>'
+    +'<div class="kv"><b class="down">'+fmtPct(mddPct)+'</b><span>maior queda ('+mddDias+' pregões)</span></div>';
+
+  const cv = document.getElementById('c_ibovChart');
+  const dpr = window.devicePixelRatio||1;
+  const w = cv.clientWidth||600, h = 80;
+  cv.width = w*dpr; cv.height = h*dpr;
+  const c = cv.getContext('2d'); c.scale(dpr,dpr);
+  const mn = Math.min(...closes), mx = Math.max(...closes), rg = (mx-mn)||1;
+  c.clearRect(0,0,w,h);
+  c.beginPath();
+  closes.forEach((v,i)=>{
+    const x = i/(closes.length-1)*w;
+    const y = h-4-((v-mn)/rg)*(h-8);
+    i?c.lineTo(x,y):c.moveTo(x,y);
+  });
+  const up = closes[closes.length-1] >= closes[0];
+  c.strokeStyle = up ? '#3ecf8e' : '#f0616d';
+  c.lineWidth = 1.8; c.stroke();
+  c.lineTo(w,h); c.lineTo(0,h); c.closePath();
+  c.fillStyle = up ? 'rgba(62,207,142,.08)' : 'rgba(240,97,109,.08)';
+  c.fill();
+}
+
+// ---------------- atualização ----------------
+const FX_URL='https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,BTC-BRL';
+async function loadFx(){
+  const box=$('fxKpis');if(!box)return;
+  try{
+    const r=await fetch(FX_URL,{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    const cell=(nome,o,dec)=>{
+      if(!o)return '<div class="kv"><b>—</b><span>'+nome+'</span></div>';
+      const v=parseFloat(o.bid),pc=parseFloat(o.pctChange);
+      const cor=pc>0?'var(--green,#3ecf8e)':pc<0?'var(--red,#f0616d)':'var(--dim)';
+      return '<div class="kv"><b>R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec})
+        +' <span style="color:'+cor+';font-size:11px;font-weight:700">'+(pc>0?'▲':pc<0?'▼':'')+' '+Math.abs(pc).toFixed(2).replace('.',',')+'%</span></b>'
+        +'<span>'+nome+'</span></div>';
+    };
+    box.innerHTML=cell('Dólar (USD)',j.USDBRL,2)+cell('Euro (EUR)',j.EURBRL,2)+cell('Bitcoin (BTC)',j.BTCBRL,0);
+  }catch(e){
+    box.innerHTML='<div class="kv"><b>—</b><span>câmbio indisponível ('+e.message+')</span></div>';
+  }
+}
+async function refreshAll(){
+  if(!STATE)return;
+  // Ibovespa e câmbio sempre são atualizados, mesmo sem tickers na vigília
+  loadFx();
+  await loadIbov();
+  if(!STATE.tickers.length){stampOk();return}
+  $('refreshBtn').disabled=true;$('refreshBtn').textContent='Atualizando…';
+  const fails=[];
+  for(const tk of STATE.tickers){
+    try{
+      const q=await brapiQuote(tk);
+      STATE.cache[tk]=compact(q,STATE.cache[tk]);
+      snapshot(tk,STATE.cache[tk]);
+    }catch(e){fails.push(tk+' ('+e.message+')')}
+  }
+  notifyTargets();
+  await saveVault();
+  render();
+  if(fails.length){
+    const netBlocked=fails.some(f=>f.includes(NET_BLOCK_MSG));
+    showErr('<b>Falha ao atualizar:</b> '+fails.join(', ')+'.<br>'+(netBlocked
+      ?'<b>O ambiente atual bloqueia chamadas externas.</b> Baixe o arquivo e abra direto no navegador (Chrome/Safari/Edge) para as cotações carregarem.'
+      :'Pode ser limite diário do plano grátis ou token inválido — confira nas Configurações. Os últimos dados salvos continuam exibidos.'));
+    $('stamp').textContent='atualização parcial — alguns dados podem estar antigos';
+  }else{hideErr();stampOk()}
+  $('refreshBtn').disabled=false;$('refreshBtn').textContent='Atualizar cotações';
+}
+$('refreshBtn').onclick=refreshAll;
+$('ordAlvo').onclick=async()=>{ if(!STATE)return; STATE.ordem='alvo'; await saveVault(); render(); };
+$('ordQueda').onclick=async()=>{ if(!STATE)return; STATE.ordem='queda'; await saveVault(); render(); };
+let RSZ_T=null;
+window.addEventListener('resize',()=>{
+  clearTimeout(RSZ_T);
+  RSZ_T=setTimeout(()=>{try{renderIbov()}catch(_){/*nada*/}try{render()}catch(_){/*nada*/}},250);
+});
+function stampOk(){$('stamp').textContent='atualizado em '+new Date().toLocaleString('pt-BR')+' · fonte brapi.dev (plano gratuito, cotação pode ter atraso)'}
+function showErr(m){$('errBox').innerHTML='<button class="errclose" onclick="hideErr()" title="fechar este aviso" aria-label="fechar aviso">✕</button>'+m;$('errBox').style.display='block'}
+function hideErr(){$('errBox').style.display='none'}
+
+// ---------------- render ----------------
+const fmtR=v=>v==null?'—':'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function render(){
+  const list=$('list');$('list').innerHTML='';
+  $('emptyMsg').style.display=STATE.tickers.length?'none':'block';
+  $('orderBar').style.display=STATE.tickers.length>1?'block':'none';
+  const modo=(STATE&&STATE.ordem==='queda')?'queda':'alvo';
+  if($('ordAlvo')){
+    $('ordAlvo').classList.toggle('on',modo==='alvo');
+    $('ordQueda').classList.toggle('on',modo==='queda');
+  }
+  $('orderNote').textContent = modo==='queda'
+    ? 'ordenado pela variação do dia — maior queda no topo (sem cotação do dia vai ao fim)'
+    : 'ordenado pela proximidade do seu alvo — menor distância no topo (sem alvo definido vai ao fim)';
+  // chave de ordenação conforme o modo escolhido
+  const chave=tk=>{
+    const ind=STATE.cache[tk];
+    if(modo==='queda'){
+      const c=ind&&ind.chg!=null?ind.chg:null;
+      return c==null?1e6:c; // mais negativo (maior queda) primeiro; sem dado vai ao fim
+    }
+    const ts=ind?targetStatus(tk,ind):null;
+    if(ts)return Math.max(ts.dist,0); // atingiu o alvo = 0 (topo absoluto)
+    return 1e6-(ind?buyScore(ind).total:-1); // sem alvo: fim, melhores scores antes
+  };
+  const ordered=STATE.tickers.slice().sort((a,b)=>chave(a)-chave(b)||a.localeCompare(b));
+  for(const tk of ordered){
+    const ind=STATE.cache[tk];
+    const el=document.createElement('div');el.className='asset';
+    if(!ind){el.innerHTML='<div class="asset-head"><span class="tk">'+tk+'</span><span class="nm">sem dados ainda — toque em Atualizar</span></div>';list.appendChild(el);continue}
+    const s=buyScore(ind), lab=scoreLabel(s.total);
+    const ts=targetStatus(tk,ind);
+    if(ts&&ts.st==='hit')el.classList.add('hit');
+    else if(ts&&ts.st==='near')el.classList.add('near');
+    const tgtBadge=ts&&ts.st==='hit'?'<span class="badge b-hit">🎯 NO ALVO '+fmtR(ts.alvo)+'</span>'
+      :ts&&ts.st==='near'?'<span class="badge b-near">a '+ts.dist.toFixed(1)+'% do alvo '+fmtR(ts.alvo)+'</span>'
+      :ts?'<span class="badge b-far">a '+ts.dist.toFixed(1)+'% do alvo '+fmtR(ts.alvo)+'</span>':'';
+    const lw=lowStatus(ind);
+    const lowBadge=lw?'<span class="badge b-low">▼ MÍNIMA '+(lw==='30d'?'30 DIAS':lw)+'</span>':'';
+    const pe=proxEvento(tk);
+    const evtBadge=pe?'<span class="badge b-evt'+(pe.n===0?' hoje':'')+'">📅 '+(pe.n===0?'HOJE':fmtDia(pe.d))+'</span>':'';
+    const chgTxt=ind.chg==null?'':'<span class="chg '+(ind.chg>=0?'up':'down')+'">'+(ind.chg>=0?'▲':'▼')+' '+Math.abs(ind.chg).toFixed(2)+'%</span>';
+    const hist=(STATE.history[tk]||[]).slice().reverse();
+    const histRows=hist.slice(0,30).map(h=>'<tr><td>'+h.d.split('-').reverse().join('/')+'</td><td>'+fmtR(h.px)+'</td><td>'+(h.rsi==null?'—':h.rsi)+'</td><td class="pts">'+h.sc+'</td><td style="font-size:11px">'+h.lb+'</td></tr>').join('');
+    const bd=s.items.map(x=>'<tr><td>'+x.n+'<br><span style="color:var(--dim);font-size:11.5px">'+x.why+'</span></td><td class="pts">'+x.p+' / '+x.max+'</td></tr>').join('');
+    el.innerHTML=
+      '<div class="asset-head">'
+      +'<span class="tk">'+tk+'</span>'
+      +'<span class="px">'+fmtR(ind.px)+'</span>'+chgTxt
+      +'<span class="nm">'+ind.name+'</span>'
+      +evtBadge
+      +lowBadge
+      +tgtBadge
+      +'<span class="badge '+lab.cls+'">'+s.total+' · '+lab.txt+'</span>'
+      +'<span class="tap-hint">gráficos e detalhes</span><span class="chev">▶</span>'
+      +'</div>'
+      +'<div class="asset-body">'
+      +'<div class="meter"><i style="width:'+s.total+'%;background:'+lab.col+'"></i></div>'
+      +'<div class="meter-lab"><span>0 desfavorável</span><span>45 neutro</span><span>70+ favorável</span></div>'
+      +'<div class="tgt-box">'
+      +'<div class="sec-t" style="margin-top:0">🎯 Meu alvo de compra</div>'
+      +'<div class="row">'
+      +'<input type="text" inputmode="decimal" class="tgt-in" data-tk="'+tk+'" placeholder="opcional — ex.: 32,50" value="'+(ts?String(ts.alvo).replace('.',','):'')+'">'
+      +'<button class="mini tgt-save" data-tk="'+tk+'">Salvar</button>'
+      +(ts?'<button class="mini ghost tgt-clear" data-tk="'+tk+'">Limpar</button>':'')
+      +'</div>'
+      +'<div class="tgt-dist">'+(
+        !ts?'Sem alvo definido. Se definir, o alvo é <b>seu</b>: serve só para o alerta e não altera a pontuação técnica.'
+        :ts.st==='hit'?'<span class="hitc">🎯 Preço atual '+fmtR(ind.px)+' está NO alvo ('+fmtR(ts.alvo)+' ou abaixo).</span>'
+        :ts.st==='near'?'<span class="nearc">👀 Preço atual '+fmtR(ind.px)+' está a '+ts.dist.toFixed(1)+'% do alvo '+fmtR(ts.alvo)+' (margem: '+(STATE.margin!=null?STATE.margin:15)+'%).</span>'
+        :'Preço atual '+fmtR(ind.px)+' está a '+ts.dist.toFixed(1)+'% acima do alvo '+fmtR(ts.alvo)+'.'
+      )+'</div>'
+      +'</div>'
+      +'<div class="grid2">'
+      +'<div class="kv"><b>'+fmtR(ind.mm21)+'</b><span>MM21</span></div>'
+      +'<div class="kv"><b>'+fmtR(ind.mm50)+'</b><span>MM50</span></div>'
+      +'<div class="kv"><b>'+fmtR(ind.mm200)+'</b><span>MM200</span></div>'
+      +'<div class="kv"><b>'+(ind.rsi==null?'—':ind.rsi.toFixed(0))+'</b><span>RSI 14</span></div>'
+      +'<div class="kv"><b>'+(ind.vol==null?'—':ind.vol.toFixed(0)+'%')+'</b><span>Vol. anual</span></div>'
+      +'<div class="kv"><b>'+fmtR(ind.lo52)+' – '+fmtR(ind.hi52)+'</b><span>Faixa 52s</span></div>'
+      +'</div>'
+      +'<div class="sec-t" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>Preço e médias móveis</span>'
+      +'<span class="rangebar">'
+      +'<button class="mini ghost" data-rg="66">3M</button>'
+      +'<button class="mini ghost on" data-rg="132">6M</button>'
+      +'<button class="mini ghost" data-rg="260">1A</button></span></div>'
+      +'<div class="legend"><span><i style="background:#19c37d"></i>Preço</span><span><i style="background:#fdc82f"></i>MM21</span><span><i style="background:#f2a33c"></i>MM50</span><span><i style="background:#9aa39d"></i>MM200</span>'+(ts?'<span><i style="background:#3ecf8e;height:2px;border-top:2px dashed #3ecf8e;background:none"></i>🎯 seu alvo</span>':'')+'</div>'
+      +'<div class="chartbox"><canvas class="chart" data-tk="'+tk+'"></canvas></div>'
+      +'<div class="sec-t">Evolução do sinal de compra (0–100)</div>'
+      +'<canvas class="schart" data-tk="'+tk+'"></canvas>'
+      +'<div class="sec-t">De onde vem a pontuação</div>'
+      +'<table>'+bd+'<tr><td><b>Total</b></td><td class="pts">'+s.total+' / 100</td></tr></table>'
+      +'<div class="sec-t">Histórico do sinal (últimos 30 registros)</div>'
+      +(histRows?'<table><tr><th>Data</th><th>Preço</th><th>RSI</th><th>Score</th><th>Leitura</th></tr>'+histRows+'</table>':'<div class="empty">Ainda sem histórico — o primeiro snapshot já foi gravado hoje.</div>')
+      +'<div class="sec-t">Agenda do ativo</div>'
+      +(function(){
+        const evs=eventosDe(tk).map((e,ix)=>({...e,ix,n:diasAte(e.d)})).sort((a,b)=>a.d<b.d?-1:1);
+        const li=evs.map(e=>'<div class="evt-row'+(e.n<0?' past':'')+'">'
+          +'<span class="ed">'+fmtDia(e.d)+'</span>'
+          +'<span class="edd '+(e.n===0?'hoje-t':'')+'">'+rotDias(e.n)+'</span>'
+          +'<span class="et">'+e.txt+'</span>'
+          +'<button class="mini ghost" data-evedit="'+tk+':'+e.ix+'" title="editar este evento (data e texto)" aria-label="editar evento">✎</button>'
+          +'<button class="mini ghost" data-evdel="'+tk+':'+e.ix+'" title="remover este evento da agenda" aria-label="remover evento">✕</button></div>').join('');
+        return (li||'<div class="empty">Sem eventos — adicione balanços, relatórios de produção, datas-com de dividendos…</div>')
+          +'<div class="evt-form">'
+          +'<input type="date" data-evd="'+tk+'">'
+          +'<input type="text" data-evt="'+tk+'" placeholder="ex.: balanço 2T26 após o fechamento" maxlength="120">'
+          +'<button class="mini" data-evadd="'+tk+'">Lembrar</button></div>';
+      })()
+      +'<div class="rm"><button class="mini ghost" data-rm="'+tk+'">Remover da vigília</button></div>'
+      +'</div>';
+    if(OPEN.has(tk))el.classList.add('open');
+    el.querySelector('.asset-head').onclick=()=>{
+      el.classList.toggle('open');
+      if(el.classList.contains('open')){OPEN.add(tk);drawAsset(el,tk)}
+      else OPEN.delete(tk);
+    };
+    el.querySelectorAll('.rangebar button').forEach(bt=>{
+      bt.onclick=e=>{e.stopPropagation();
+        el.querySelectorAll('.rangebar button').forEach(x=>x.classList.remove('on'));
+        bt.classList.add('on');RANGES[tk]=+bt.dataset.rg;drawAsset(el,tk);};
+    });
+    list.appendChild(el);
+  }
+  requestAnimationFrame(()=>{
+    list.querySelectorAll('.asset.open').forEach(el=>{
+      const b=el.querySelector('[data-rm]');
+      if(b)drawAsset(el,b.dataset.rm);
+    });
+  });
+  renderEventsBar();
+  list.querySelectorAll('[data-evadd]').forEach(b=>{
+    b.onclick=async e=>{
+      e.stopPropagation();
+      const tk=b.dataset.evadd;
+      const dI=list.querySelector('input[data-evd="'+tk+'"]');
+      const tI=list.querySelector('input[data-evt="'+tk+'"]');
+      const d=dI&&dI.value, txt=(tI&&tI.value.trim())||'';
+      if(!d||!txt){showErr('Para o lembrete, preencha a <b>data</b> e a <b>descrição</b>.');return}
+      if(!STATE.events)STATE.events={};
+      if(!STATE.events[tk])STATE.events[tk]=[];
+      STATE.events[tk].push({d,txt});
+      if(STATE.events[tk].length>40)STATE.events[tk]=STATE.events[tk].slice(-40);
+      await saveVault();hideErr();render();
+    };
+  });
+  list.querySelectorAll('[data-evedit]').forEach(b=>{
+    b.onclick=e=>{
+      e.stopPropagation();
+      const parts=b.dataset.evedit.split(':');
+      const tk=parts[0], ix=+parts[1];
+      const ev=STATE.events[tk]&&STATE.events[tk][ix];
+      if(!ev)return;
+      const row=b.closest('.evt-row');if(!row)return;
+      // monta o formulario via DOM (preserva acentos/aspas do texto sem escapes)
+      row.innerHTML='';
+      const wrap=document.createElement('div');
+      wrap.className='evt-form';wrap.style.flex='1';wrap.style.marginTop='0';
+      const dI=document.createElement('input');dI.type='date';dI.value=ev.d;
+      const tI=document.createElement('input');tI.type='text';tI.value=ev.txt;tI.maxLength=120;
+      const ok=document.createElement('button');ok.className='mini';ok.textContent='Salvar';
+      const ca=document.createElement('button');ca.className='mini ghost';ca.textContent='Cancelar';
+      wrap.append(dI,tI,ok,ca);
+      row.appendChild(wrap);
+      wrap.onclick=ev2=>ev2.stopPropagation();
+      tI.focus();
+      ok.onclick=async ev2=>{
+        ev2.stopPropagation();
+        const d=dI.value, txt=tI.value.trim();
+        if(!d||!txt){showErr('Para salvar o lembrete, preencha a <b>data</b> e a <b>descrição</b>.');return}
+        STATE.events[tk][ix]={d,txt};
+        await saveVault();
+        hideErr();
+        render(); // reordena a lista, refaz selos e a barra da semana
+      };
+      ca.onclick=ev2=>{ev2.stopPropagation();render()};
+    };
+  });
+  list.querySelectorAll('[data-evdel]').forEach(b=>{
+    b.onclick=async e=>{
+      e.stopPropagation();
+      const [tk,ix]=b.dataset.evdel.split(':');
+      STATE.events[tk].splice(+ix,1);
+      await saveVault();render();
+    };
+  });
+  list.querySelectorAll('.evt-form input, .evt-form').forEach(el=>{el.onclick=e=>e.stopPropagation()});
+  list.querySelectorAll('[data-rm]').forEach(b=>{
+    b.onclick=async e=>{
+      e.stopPropagation();
+      const tk=b.dataset.rm;
+      if(!confirm('Remover '+tk+' e apagar seu histórico de sinais?'))return;
+      STATE.tickers=STATE.tickers.filter(x=>x!==tk);
+      delete STATE.cache[tk];delete STATE.history[tk];
+      if(STATE.events)delete STATE.events[tk];
+      delete STATE.targets[tk];delete STATE.alerted[tk];
+      await saveVault();render();
+    };
+  });
+  list.querySelectorAll('.tgt-save').forEach(b=>{
+    b.onclick=async e=>{
+      e.stopPropagation();
+      const tk=b.dataset.tk;
+      const inp=list.querySelector('.tgt-in[data-tk="'+tk+'"]');
+      const v=parseNum(inp.value);
+      if(inp.value.trim()&&v==null)return showErr('Alvo inválido para '+tk+'. Use um número, ex.: 32,50.');
+      if(v==null)delete STATE.targets[tk];else STATE.targets[tk]=v;
+      delete STATE.alerted[tk]; // rearma a notificação para o novo alvo
+      await saveVault();hideErr();render();
+    };
+  });
+  list.querySelectorAll('.tgt-clear').forEach(b=>{
+    b.onclick=async e=>{
+      e.stopPropagation();
+      const tk=b.dataset.tk;
+      delete STATE.targets[tk];delete STATE.alerted[tk];
+      await saveVault();render();
+    };
+  });
+  list.querySelectorAll('.tgt-in').forEach(inp=>{
+    inp.onclick=e=>e.stopPropagation();
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Enter')list.querySelector('.tgt-save[data-tk="'+inp.dataset.tk+'"]').click();
+    });
+  });
+  renderAlertBar();
+}
+const RANGES={};
+const OPEN=new Set();
+function seriesOf(ind){
+  // saneia dados antigos do cache: remove pontos sem fechamento numérico válido
+  const clean=a=>a.filter(p=>p&&Number.isFinite(+p.c)).map(p=>({t:p.t,c:+p.c}));
+  if(ind.series&&ind.series.length>1){const s=clean(ind.series);if(s.length>1)return s}
+  if(ind.closes&&ind.closes.length>1){const s=clean(ind.closes.map(c=>({t:null,c})));if(s.length>1)return s}
+  return [];
+}
+function mmArr(cl,n){
+  const out=new Array(cl.length).fill(null);let s=0;
+  for(let i=0;i<cl.length;i++){
+    s+=cl[i];
+    if(i>=n)s-=cl[i-n];
+    if(i>=n-1)out[i]=s/n;
+  }
+  return out;
+}
+function cvCtx(cv,h){
+  const dpr=window.devicePixelRatio||1;
+  const w=cv.clientWidth||320;
+  cv.width=w*dpr;cv.height=h*dpr;
+  const c=cv.getContext('2d');c.scale(dpr,dpr);
+  return {c,w,h};
+}
+const MESES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function drawAsset(el,tk,tent){
+  const ind=STATE.cache[tk];if(!ind)return;
+  const cv=el.querySelector('canvas.chart');
+  if(cv&&!cv.clientWidth&&(tent||0)<5){
+    requestAnimationFrame(()=>drawAsset(el,tk,(tent||0)+1));
+    return;
+  }
+  // isolamento: erro em um ativo nunca derruba o desenho dos demais
+  try{
+    drawChart(cv,ind,RANGES[tk]||132,STATE.targets?STATE.targets[tk]:null);
+  }catch(e){
+    console.error('drawChart',tk,e);
+    if(cv){
+      try{
+        const {c,w,h}=cvCtx(cv,230);
+        c.clearRect(0,0,w,h);
+        c.font='11px sans-serif';c.fillStyle='#f0616d';c.textAlign='center';c.textBaseline='middle';
+        c.fillText('erro ao desenhar '+tk+' — toque em Atualizar cotações para recarregar a série',w/2,h/2);
+      }catch(_){/* nada */}
+    }
+  }
+  try{
+    drawScore(el.querySelector('canvas.schart'),STATE.history[tk]||[]);
+  }catch(e){console.error('drawScore',tk,e)}
+}
+const CHARTJS={};
+function drawChart(cv,ind,nBars,tgt){
+  if(!cv)return;
+  const tk=cv.dataset.tk||'';
+  const S=seriesOf(ind);
+  if(!window.Chart){
+    const {c,w,h}=cvCtx(cv,240);
+    c.clearRect(0,0,w,h);
+    c.font='11px sans-serif';c.fillStyle='#8b96b0';c.textAlign='center';c.textBaseline='middle';
+    c.fillText('gráfico interativo indisponível — o CDN do Chart.js não carregou (verifique a conexão)',w/2,h/2);
+    return;
+  }
+  if(S.length<2){
+    const {c,w,h}=cvCtx(cv,240);
+    c.clearRect(0,0,w,h);
+    c.font='11px sans-serif';c.fillStyle='#8b96b0';c.textAlign='center';c.textBaseline='middle';
+    c.fillText('sem série de preços salva — toque em Atualizar cotações',w/2,h/2);
+    return;
+  }
+  const cl=S.map(p=>p.c);
+  const m21=mmArr(cl,21),m50=mmArr(cl,50),m200=mmArr(cl,200);
+  const i0=Math.max(0,S.length-nBars);
+  const lbl=[],px=[],a21=[],a50=[],a200=[],aTgt=[];
+  for(let i=i0;i<S.length;i++){
+    const d=S[i].t?new Date(S[i].t*1000):null;
+    lbl.push(d?String(d.getDate()).padStart(2,'0')+'/'+MESES[d.getMonth()]:'');
+    px.push(cl[i]);a21.push(m21[i]);a50.push(m50[i]);a200.push(m200[i]);
+    aTgt.push(tgt!=null&&tgt>0?tgt:null);
+  }
+  const faltam=nBars-(S.length-i0);
+  const dias=S.length-i0;
+  const ds=[
+    {label:tk||'Preço',data:px,borderColor:'#19c37d',borderWidth:2,pointRadius:0,tension:.25},
+    {label:'MM21',data:a21,borderColor:'#fdc82f',borderWidth:1.4,pointRadius:0,tension:.25},
+    {label:'MM50',data:a50,borderColor:'#f2a33c',borderWidth:1.4,borderDash:[6,4],pointRadius:0,tension:.25},
+    {label:'MM200',data:a200,borderColor:'#9aa39d',borderWidth:1.4,borderDash:[2,3],pointRadius:0,tension:.25}
+  ];
+  if(tgt!=null&&tgt>0)ds.push({label:'🎯 alvo',data:aTgt,borderColor:'#3ecf8e',borderWidth:1.4,borderDash:[7,4],pointRadius:0,tension:0});
+  const old=Chart.getChart(cv);if(old)old.destroy();
+  if(CHARTJS[tk]&&CHARTJS[tk]!==old){try{CHARTJS[tk].destroy()}catch(_){}}
+  CHARTJS[tk]=new Chart(cv,{
+    type:'line',
+    data:{labels:lbl,datasets:ds},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},
+        title:{display:faltam>10,align:'start',color:'#f0b429',font:{size:10},padding:{bottom:4},
+          text:'histórico salvo: '+dias+' pregões (~'+Math.round(dias/21)+' meses) — brapi grátis entrega ~3M; o painel acumula o resto'},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y==null?'—':'R$ '+c.parsed.y.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}))}}},
+      scales:{
+        x:{ticks:{color:'#8b96b0',maxTicksLimit:7,maxRotation:0,font:{size:10,family:'monospace'}},grid:{display:false}},
+        y:{ticks:{color:'#8b96b0',font:{size:10,family:'monospace'},callback:v=>'R$'+(+v).toFixed(0)},grid:{color:'rgba(255,255,255,.05)'}}
+      }}
+  });
+}
+function drawScore(cv,hist){
+  if(!cv)return;
+  const {c,w,h}=cvCtx(cv,110);
+  const padL=30,padR=10,padT=8,padB=16;
+  const iw=w-padL-padR,ih=h-padT-padB;
+  const Y=v=>padT+ih-v/100*ih;
+  c.clearRect(0,0,w,h);
+  // faixas de leitura ao fundo
+  c.fillStyle='rgba(62,207,142,.08)';c.fillRect(padL,Y(100),iw,Y(70)-Y(100));
+  c.fillStyle='rgba(240,180,41,.07)';c.fillRect(padL,Y(70),iw,Y(45)-Y(70));
+  c.fillStyle='rgba(240,97,109,.05)';c.fillRect(padL,Y(45),iw,Y(0)-Y(45));
+  c.font='9px sans-serif';c.textAlign='right';c.textBaseline='middle';
+  [0,45,70,100].forEach(v=>{
+    c.fillStyle='#8b96b0';c.fillText(v,padL-5,Y(v));
+    c.strokeStyle='rgba(139,150,176,.2)';c.beginPath();c.moveTo(padL,Y(v));c.lineTo(w-padR,Y(v));c.stroke();
+  });
+  if(!hist.length){
+    c.fillStyle='#8b96b0';c.textAlign='center';
+    c.fillText('o gráfico cresce a cada dia que você abre o painel',padL+iw/2,padT+ih/2);
+    return;
+  }
+  const X=i=>padL+(hist.length===1?iw/2:i/(hist.length-1)*iw);
+  if(hist.length>1){
+    c.beginPath();
+    hist.forEach((p,i)=>{i?c.lineTo(X(i),Y(p.sc)):c.moveTo(X(i),Y(p.sc))});
+    c.strokeStyle='#f0b429';c.lineWidth=1.6;c.stroke();
+  }
+  hist.forEach((p,i)=>{
+    c.fillStyle=p.sc>=70?'#3ecf8e':p.sc>=45?'#f0b429':'#f0616d';
+    c.beginPath();c.arc(X(i),Y(p.sc),2.6,0,7);c.fill();
+  });
+  c.fillStyle='#8b96b0';c.textBaseline='top';
+  const fmtD=s=>s.slice(5).split('-').reverse().join('/');
+  c.textAlign='left';c.fillText(fmtD(hist[0].d),padL,padT+ih+4);
+  if(hist.length>1){c.textAlign='right';c.fillText(fmtD(hist[hist.length-1].d),w-padR,padT+ih+4)}
+}
+// redesenha cards abertos ao girar a tela / redimensionar
+let rsT=null;
+window.addEventListener('resize',()=>{
+  clearTimeout(rsT);
+  rsT=setTimeout(()=>{
+    document.querySelectorAll('.asset.open').forEach(el=>{
+      const b=el.querySelector('[data-rm]');
+      if(b)drawAsset(el,b.dataset.rm);
+    });
+  },200);
+});
+
+// ---------------- notificações de alvo ----------------
+function notifyTargets(){
+  // dispara notificação só quando o estado MUDA (far→near, near→hit etc.), sem repetir
+  for(const tk of STATE.tickers){
+    const ts=targetStatus(tk,STATE.cache[tk]);
+    const cur=ts?ts.st:null;
+    const prev=STATE.alerted[tk]||null;
+    if(cur!==prev){
+      if((cur==='hit'||cur==='near')&&typeof Notification!=='undefined'&&Notification.permission==='granted'){
+        try{
+          new Notification(cur==='hit'?('🎯 '+tk+' atingiu seu alvo!'):('👀 '+tk+' perto do alvo'),
+            {body:tk+' a '+fmtR(STATE.cache[tk].px)+(ts?' · alvo '+fmtR(ts.alvo):''),tag:'rc-'+tk});
+        }catch(e){/* alguns navegadores móveis exigem service worker; o alerta visual cobre */}
+      }
+      if(cur==null)delete STATE.alerted[tk];else STATE.alerted[tk]=cur;
+    }
+  }
+}
+$('cNotif').onclick=async()=>{
+  if(typeof Notification==='undefined'){
+    $('cNotifHint').innerHTML='Este navegador não suporta notificações. O alerta visual (banner e badge) continua funcionando normalmente.';
+    return;
+  }
+  const p=await Notification.requestPermission();
+  $('cNotif').textContent=p==='granted'?'Notificações ativadas ✓':(p==='denied'?'Permissão negada pelo navegador':'Ativar notificações do navegador');
+};
+if(typeof Notification!=='undefined'&&Notification.permission==='granted'){
+  $('cNotif').textContent='Notificações ativadas ✓';
+}
+
+// ---------------- importar agenda do CIO ----------------
+async function importAgenda(txt){
+  const msg=$('impMsg');
+  let js;
+  try{js=JSON.parse(txt)}catch(e){msg.textContent='Conteúdo inválido — não é um JSON.';return}
+  const evs=js&&js.eventos;
+  const rem=js&&js.remover;
+  if(!Array.isArray(evs)&&!Array.isArray(rem)){msg.textContent='Formato não reconhecido — esperado {"eventos":[…]} e/ou {"remover":[…]}.';return}
+  if(!STATE.events)STATE.events={};
+  let del=0;
+  if(Array.isArray(rem))for(const r of rem){
+    const tk=String(r.ticker||'').toUpperCase().trim();
+    const d=String(r.d||''), t=(r.txt===undefined?null:String(r.txt).trim().slice(0,120));
+    if(!/^[A-Z0-9]{4,8}$/.test(tk)||!/^\d{4}-\d{2}-\d{2}$/.test(d))continue;
+    const arr=STATE.events[tk];if(!arr)continue;
+    const antes=arr.length;
+    STATE.events[tk]=arr.filter(x=>!(x.d===d&&(t===null||x.txt===t)));
+    del+=antes-STATE.events[tk].length;
+    if(!STATE.events[tk].length)delete STATE.events[tk];
+  }
+  let add=0,dup=0,inv=0;
+  for(const e of (Array.isArray(evs)?evs:[])){
+    const tk=String(e.ticker||'').toUpperCase().trim();
+    const d=e.d, t=String(e.txt||'').trim().slice(0,120);
+    if(!/^[A-Z0-9]{4,8}$/.test(tk)||!/^\d{4}-\d{2}-\d{2}$/.test(String(d||''))||!t){inv++;continue}
+    if(!STATE.events[tk])STATE.events[tk]=[];
+    if(STATE.events[tk].some(x=>x.d===d&&x.txt===t)){dup++;continue}
+    if(STATE.events[tk].length>=40){inv++;continue}
+    STATE.events[tk].push({d,txt:t});add++;
+  }
+  await saveVault();render();
+  msg.textContent='Importados '+add+' evento(s)'+(del?' · '+del+' removido(s)':'')+(dup?' · '+dup+' já existiam':'')+(inv?' · '+inv+' inválido(s) ignorado(s)':'')+'.';
+}
+$('impBtn').onclick=()=>{const t=$('impTxt').value.trim();if(t)importAgenda(t);else $('impMsg').textContent='Cole o JSON ou escolha o arquivo.'};
+$('impFile').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{$('impTxt').value=String(r.result||'');importAgenda(String(r.result||''))};
+  r.readAsText(f);
+});
+
+// ---------------- config ----------------
+$('cSave').onclick=async()=>{
+  STATE.tok=$('cTok').value.trim()||DEFAULT_TOKEN;
+  const mg=parseNum($('cMargin').value);
+  if(mg!=null&&mg>0&&mg<=100)STATE.margin=mg;
+  $('cMargin').value=String(STATE.margin).replace('.',',');
+  // margem nova pode mudar estados — rearma alertas
+  STATE.alerted={};
+  await saveVault();
+  render();
+  $('cSave').textContent='Salvo ✓';
+  setTimeout(()=>$('cSave').textContent='Salvar',1500);
+};
+
+// ---------------- boot ----------------
+
+window.__compra={
+  defaults:function(){return {tickers:[],history:{},cache:{},tok:DEFAULT_TOKEN,targets:{},margin:15,alerted:{},events:{},ibov:null};},
+  onUnlock:function(state){
+    STATE = state || this.defaults();
+    if(!STATE.events)STATE.events={};
+    if(!STATE.ibov)STATE.ibov=null;
+    migrate();
+    if(seedEvents())saveVault();
+    $('cTok').value=STATE.tok||DEFAULT_TOKEN;
+    fillTune();
+    $('cMargin').value=String(STATE.margin!=null?STATE.margin:15).replace('.',',');
+    render();renderIbov();refreshAll();
+  },
+  onLock:function(){ STATE=null; }
+};
+
+})();
+</script>
+<script>
+/* ===== VENDA (escopo global) ===== */
+
+const TICKER='PETR4';
+const DEFAULT_TOKEN='hmqXX49px8jhzUTAAGR9A4';
+const REFRESH_MS=3*60*60*1000;
+let chart=null,chartComp=null,lastFetch=0;
+
+// ---------- persistência ----------
+function store(k,v){try{localStorage.setItem('radar_'+k,v)}catch(e){}}
+function read(k,d){try{const v=localStorage.getItem('radar_'+k);return v===null?d:v}catch(e){return d}}
+function wipeKeys(){['qty','avg','tgt','stp','tok'].forEach(k=>{try{localStorage.removeItem('radar_'+k)}catch(e){}})}
+
+// ---------- criptografia local (AES-256-GCM + PBKDF2/SHA-256, 200 mil iterações) ----------
+const ENC_KEY='radar_enc';
+let sessionPin=null;
+const cryptoOK=!!(window.crypto&&crypto.subtle);
+function b64(buf){return btoa(String.fromCharCode.apply(null,new Uint8Array(buf)))}
+function unb64(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0))}
+async function deriveKey(pin,salt){
+  const mat=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:200000,hash:'SHA-256'},mat,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encWrite(pin,obj){
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(pin,salt);
+  const data=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,new TextEncoder().encode(JSON.stringify(obj)));
+  localStorage.setItem(ENC_KEY,JSON.stringify({s:b64(salt),i:b64(iv),d:b64(data)}));
+}
+async function encRead(pin){
+  const raw=localStorage.getItem(ENC_KEY);if(!raw)return null;
+  const o=JSON.parse(raw);
+  const key=await deriveKey(pin,unb64(o.s));
+  const buf=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(o.i)},key,unb64(o.d));
+  return JSON.parse(new TextDecoder().decode(buf));
+}
+function hasEnc(){try{return !!localStorage.getItem(ENC_KEY)}catch(e){return false}}
+
+// ---------- agenda de eventos (cifrada junto com a posição) ----------
+let EVENTS=[];
+let LAST_PX=null, POS_QTY=0;
+let POSITIONS=null, POS_CACHE={}, SALES=null;
+// Escada semeada na 1ª migração (parecer CIO de 22/07/2026); depois disso, o que vale é o que você editar.
+/* escada de venda removida no Radar de Venda multi-ativo */
+// Semeadura 2T26 (consultado em 21/07/2026; empresas podem remarcar). Idempotente por data.
+const SEED_EVENTS=[
+  {d:'2026-08-06',txt:'Balanço 2T26, após o fechamento — possível nova rodada de dividendos',tk:'PETR4'},
+  {d:'2026-08-20',txt:'Pagamento da 1ª parcela de dividendos: R$ 0,35/ação (data-com 01/06)',tk:'PETR4'},
+  {d:'2026-09-21',txt:'Pagamento da 2ª parcela de dividendos: R$ 0,35/ação (data-com 01/06)',tk:'PETR4'}
+];
+function seedEvents(){
+  let mudou=false;
+  for(const ev of SEED_EVENTS){
+    if(!EVENTS.some(e=>e.d===ev.d&&(e.tk||'')===(ev.tk||''))){EVENTS.push({d:ev.d,txt:ev.txt,tk:ev.tk||''});mudou=true}
+  }
+  return mudou;
+}
+function hojeStr(){return new Date().toISOString().slice(0,10)}
+function diasAte(d){
+  const a=new Date(hojeStr()+'T00:00:00Z'), b=new Date(d+'T00:00:00Z');
+  return Math.round((b-a)/86400000);
+}
+function fmtDia(d){const p=d.split('-');return p[2]+'/'+p[1]}
+function rotDias(n){
+  if(n===0)return 'HOJE';
+  if(n===1)return 'amanhã';
+  if(n>1)return 'em '+n+' dias';
+  return 'há '+(-n)+' dia'+(n<-1?'s':'');
+}
+function renderAgenda(){
+  const wk=document.getElementById('evtWeek');
+  const ls=document.getElementById('evtList');
+  if(!wk||!ls)return;
+  const evs=EVENTS.map((e,ix)=>({d:e.d,txt:e.txt,tk:e.tk||'',ix,n:diasAte(e.d)})).sort((a,b)=>a.d<b.d?-1:1);
+  // destaque da semana
+  const prox=evs.filter(e=>e.n>=0&&e.n<=7);
+  if(prox.length){
+    wk.className='evt-week on'+(prox.some(e=>e.n===0)?' today':'');
+    wk.innerHTML='<b>📅 Próximos 7 dias</b><br>'+prox.map(e=>fmtDia(e.d)+' — '+(e.tk?('['+e.tk+'] '):'')+e.txt+' <span class="'+(e.n===0?'hj':'')+'" style="white-space:nowrap">('+rotDias(e.n)+')</span>').join('<br>');
+  }else{wk.className='evt-week';wk.innerHTML=''}
+  // lista completa
+  ls.innerHTML=evs.length?evs.map(e=>
+    '<div class="evt-row'+(e.n<0?' past':'')+'">'
+    +'<span class="ed">'+fmtDia(e.d)+'</span>'
+    +'<span class="edd '+(e.n===0?'hj':'')+'">'+rotDias(e.n)+'</span>'
+    +'<span class="et"></span>'
+    +'<button data-eved="'+e.ix+'" title="editar">✎</button>'
+    +'<button data-evx="'+e.ix+'" title="remover">✕</button></div>'
+  ).join(''):'<div class="hint">Sem eventos cadastrados.</div>';
+  // texto via DOM (preserva acentos/aspas)
+  const rows=ls.querySelectorAll('.evt-row');
+  evs.forEach((e,k)=>{const el=rows[k]&&rows[k].querySelector('.et');if(el)el.textContent=(e.tk?'['+e.tk+'] ':'')+e.txt});
+  ls.querySelectorAll('[data-evx]').forEach(b=>{
+    b.onclick=async()=>{EVENTS.splice(+b.dataset.evx,1);await saveCfg();renderAgenda()};
+  });
+  ls.querySelectorAll('[data-eved]').forEach(b=>{
+    b.onclick=()=>{
+      const ix=+b.dataset.eved, ev=EVENTS[ix];if(!ev)return;
+      const row=b.closest('.evt-row');row.innerHTML='';
+      const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1;margin-top:0';
+      const tkI=document.createElement('input');tkI.type='text';tkI.value=ev.tk||'';tkI.maxLength=8;tkI.placeholder='ticker';tkI.style.cssText='width:100px;text-transform:uppercase';
+      const dI=document.createElement('input');dI.type='date';dI.value=ev.d;dI.style.flex='1';
+      const tI=document.createElement('input');tI.type='text';tI.value=ev.txt;tI.maxLength=120;tI.style.cssText='flex:2;min-width:160px';
+      const ok=document.createElement('button');ok.className='go';ok.textContent='Salvar';ok.style.whiteSpace='nowrap';
+      const ca=document.createElement('button');ca.textContent='Cancelar';
+      ca.style.cssText='background:transparent;color:var(--dim);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;white-space:nowrap';
+      wrap.append(tkI,dI,tI,ok,ca);row.appendChild(wrap);tI.focus();
+      ok.onclick=async()=>{
+        const d=dI.value,txt=tI.value.trim();
+        const tk=tkI.value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
+        if(!d||!txt){alert('Data e descrição são obrigatórias.');return}
+        EVENTS[ix]={d,txt,tk};await saveCfg();renderAgenda();
+      };
+      ca.onclick=()=>renderAgenda();
+    };
+  });
+}
+async function importAgenda(txt){
+  const msg=document.getElementById('impMsg');
+  let js;
+  try{js=JSON.parse(txt)}catch(e){msg.textContent='Conteúdo inválido — não é um JSON.';return}
+  const evs=js&&js.eventos;
+  if(!Array.isArray(evs)){msg.textContent='Formato não reconhecido.';return}
+  let add=0,dup=0,skip=0;
+  for(const e of evs){
+    const tk=String(e.ticker||'').toUpperCase().trim();
+    if(!tk){skip++;continue}
+    const d=e.d, t=String(e.txt||'').trim().slice(0,120);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(String(d||''))||!t)continue;
+    if(EVENTS.some(x=>x.d===d&&x.txt===t&&(x.tk||'')===tk)){dup++;continue}
+    EVENTS.push({d,txt:t,tk});add++;
+  }
+  await saveCfg();renderAgenda();
+  msg.textContent='Importados '+add+' evento(s)'+(dup?' · '+dup+' já existiam':'')+(skip?' · '+skip+' de outros ativos ignorados':'')+'.';
+}
+function collectCfg(){return{qty:cQty.value,avg:cAvg.value,tgt:cTgt.value,stp:cStp.value,tok:cTok.value.trim(),pare:pareText.value,pareAt:read('pareAt',''),evts:EVENTS,positions:POSITIONS,positionsSeeded:true,sales:SALES,salesSeeded:true}}
+function applyCfg(o){cQty.value=o.qty;cAvg.value=o.avg;cTgt.value=o.tgt;cStp.value=o.stp;cTok.value=o.tok;pareText.value=o.pare||'';renderParecer(o.pare||'',o.pareAt||'');
+  EVENTS=Array.isArray(o.evts)?o.evts:[];
+  let precisaSalvar=seedEvents();
+  if(Array.isArray(o.positions)){
+    POSITIONS=o.positions;
+    // migração suave: painel antigo guardava PETR4 em campos avulsos; traz para a lista SÓ na 1ª vez —
+    // depois disso 'positionsSeeded' trava essa recriação, mesmo que o campo legado 'qty' continue com valor salvo
+    if(!o.positionsSeeded&&o.qty&&!POSITIONS.some(p=>p.tk==='PETR4')){
+      POSITIONS.unshift({tk:'PETR4',qty:parseFloat(o.qty)||0,pm:parseFloat(o.avg)||0,tgt:o.tgt||'',stp:o.stp||''});
+      precisaSalvar=true;
+    }
+  }
+  else{POSITIONS=[
+    {tk:'PETR4',qty:300,pm:38.42,tgt:47.50,stp:37.00},
+    {tk:'SANB11',qty:100,pm:25.98,tgt:'',stp:''}
+  ];precisaSalvar=true} // semente única na 1ª migração; remoções e edições são respeitadas depois
+  SALES=Array.isArray(o.sales)?o.sales:[];
+  // semente única: venda parcial de PETR4 em 31/07/2026 (33 @ R$ 43,23). Só baixa a posição se ainda estiver em 300.
+  if(!o.salesSeeded){
+    SALES.push({tk:'PETR4',qty:33,px:43.23,pm:38.42,d:'2026-07-31'});
+    const p=POSITIONS.find(x=>x.tk==='PETR4');
+    if(p&&Number(p.qty)===300)p.qty=267;
+    precisaSalvar=true;
+  }
+  if(precisaSalvar)setTimeout(()=>{try{saveCfg()}catch(e){}},400);
+  renderAgenda();
+  renderPositions();
+  renderSales();
+}
+function renderParecer(txt,at){
+  if(!txt){pareView.innerHTML='Nenhum parecer salvo ainda. Toque em "Copiar p/ análise" no card de notícias, cole no Claude, e traga a resposta para cá.';return}
+  const esc=txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  pareView.innerHTML='<div style="color:var(--txt)">'+esc+'</div>'+(at?'<div class="src" style="margin-top:8px">salvo em '+at+'</div>':'');
+}
+function loadCfg(){
+  applyCfg({qty:read('qty','300'),avg:read('avg','39.47'),tgt:read('tgt',''),stp:read('stp',''),tok:read('tok',DEFAULT_TOKEN)});
+}
+async function saveCfg(){ if(!window.SH_STATE)return; window.SH_STATE.venda=collectCfg(); await window.shPersist(); if(typeof refreshPinStatus==='function')refreshPinStatus(); }
+function refreshPinStatus(){
+  if(!cryptoOK){pinStatus.textContent='Este navegador não suporta criptografia local (Web Crypto). Dados ficam sem cifra.';return}
+  pinStatus.textContent=hasEnc()?'✓ Proteção ativa: dados cifrados com AES-256. Todo acesso exige PIN. Não há recuperação — quem esquece o PIN, apaga e recomeça.':'Cofre ainda não criado — defina o PIN na tela inicial.';
+}
+
+// ---------- utilidades ----------
+let LAST_IBOV=null;
+function renderIbovCard(q){
+  LAST_IBOV=q;
+  const head=document.getElementById('ibovHead');
+  const kpis=document.getElementById('ibovKpis');
+  const cv=document.getElementById('ibovChart');
+  if(!head||!q||!q.historicalDataPrice)return;
+  const hist=q.historicalDataPrice.filter(x=>x&&Number.isFinite(+x.close));
+  const closes=hist.map(x=>+x.close);
+  if(closes.length<2){head.innerHTML='<span class="lab">sem histórico suficiente</span>';return}
+  const px=+q.regularMarketPrice||closes[closes.length-1];
+  const chg=+q.regularMarketChangePercent;
+  const pts=Math.round(px*1000);
+  const arrow=chg>=0?'▲':'▼';
+  const cls=chg>=0?'up':'dn';
+  const fmtPts=v=>v.toLocaleString('pt-BR');
+  const fmtPct=v=>v==null?'—':(v>=0?'+':'')+v.toFixed(2)+'%';
+  const delta=n=>closes.length>n?(px/closes[closes.length-1-n]-1)*100:null;
+  const d5=delta(5), d21=delta(21), d63=delta(63);
+  const hi=Math.max(...closes), lo=Math.min(...closes);
+  const distHi=(px/hi-1)*100, distLo=(px/lo-1)*100;
+  // maior queda contínua no arquivo (drawdown máximo)
+  let peak=closes[0], mdd=0, pIdx=0, tIdx=0, cur=0;
+  for(let i=0;i<closes.length;i++){
+    if(closes[i]>peak){peak=closes[i];cur=i}
+    const dd=(closes[i]/peak-1)*100;
+    if(dd<mdd){mdd=dd;pIdx=cur;tIdx=i}
+  }
+  const mddDias=tIdx-pIdx;
+
+  head.innerHTML='<span class="pts">'+fmtPts(pts)+' pts</span>'
+    +'<span class="chg '+cls+'">'+arrow+' '+fmtPct(chg)+' hoje</span>'
+    +'<span class="lab">via BOVA11 · fech. '+(hist[hist.length-1].date?new Date(hist[hist.length-1].date*1000).toLocaleDateString('pt-BR'):'')+'</span>';
+
+  kpis.innerHTML=''
+    +'<div class="kv"><b class="'+((d5||0)>=0?'up':'dn')+'">'+fmtPct(d5)+'</b><span>últimos 5 pregões</span></div>'
+    +'<div class="kv"><b class="'+((d21||0)>=0?'up':'dn')+'">'+fmtPct(d21)+'</b><span>último mês (21)</span></div>'
+    +'<div class="kv"><b class="'+((d63||0)>=0?'up':'dn')+'">'+fmtPct(d63)+'</b><span>últimos 3 meses (63)</span></div>'
+    +'<div class="kv"><b>'+fmtPct(distHi)+'</b><span>vs. topo do arquivo</span></div>'
+    +'<div class="kv"><b>'+fmtPct(distLo)+'</b><span>vs. mínima do arquivo</span></div>'
+    +'<div class="kv"><b class="dn">'+fmtPct(mdd)+'</b><span>maior queda ('+mddDias+' pregões)</span></div>';
+
+  const dpr=window.devicePixelRatio||1;
+  const w=cv.clientWidth||600, h=80;
+  cv.width=w*dpr; cv.height=h*dpr;
+  const c=cv.getContext('2d'); c.scale(dpr,dpr);
+  const mn=Math.min(...closes), mx=Math.max(...closes), rg=(mx-mn)||1;
+  c.clearRect(0,0,w,h);
+  c.beginPath();
+  closes.forEach((v,i)=>{
+    const x=i/(closes.length-1)*w;
+    const y=h-4-((v-mn)/rg)*(h-8);
+    i?c.lineTo(x,y):c.moveTo(x,y);
+  });
+  const up=closes[closes.length-1]>=closes[0];
+  c.strokeStyle=up?'#19c37d':'#f0616d';
+  c.lineWidth=1.8; c.stroke();
+  c.lineTo(w,h); c.lineTo(0,h); c.closePath();
+  c.fillStyle=up?'rgba(25,195,125,.08)':'rgba(240,97,109,.08)';
+  c.fill();
+}
+const fmt=n=>'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct=n=>(n>=0?'+':'')+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
+function sma(arr,p,i){if(i<p-1)return null;let s=0;for(let j=i-p+1;j<=i;j++)s+=arr[j];return s/p}
+function rsi14(closes){
+  if(closes.length<15)return null;
+  let g=0,l=0;
+  for(let i=1;i<=14;i++){const d=closes[i]-closes[i-1];if(d>0)g+=d;else l-=d}
+  let ag=g/14,al=l/14;
+  for(let i=15;i<closes.length;i++){
+    const d=closes[i]-closes[i-1];
+    ag=(ag*13+(d>0?d:0))/14; al=(al*13+(d<0?-d:0))/14;
+  }
+  if(al===0)return 100;
+  return 100-100/(1+ag/al);
+}
+function vol30(closes){
+  if(closes.length<31)return null;
+  const r=[];for(let i=closes.length-30;i<closes.length;i++)r.push(Math.log(closes[i]/closes[i-1]));
+  const m=r.reduce((a,b)=>a+b,0)/r.length;
+  const v=Math.sqrt(r.reduce((a,b)=>a+(b-m)*(b-m),0)/(r.length-1));
+  return v*Math.sqrt(252)*100;
+}
+
+// ---------- coleta: BCB SGS ----------
+async function sgs(serie,n){
+  const r=await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.'+serie+'/dados/ultimos/'+n+'?formato=json');
+  if(!r.ok)throw new Error('SGS '+serie+' HTTP '+r.status);
+  return r.json();
+}
+async function fetchMacro(){
+  const out={};
+  const jobs=[
+    sgs(432,1).then(d=>{out.selic={v:parseFloat(d[0].valor),d:d[0].data}}),
+    sgs(4389,1).then(d=>{out.cdi={v:parseFloat(d[0].valor),d:d[0].data}}),
+    sgs(13522,1).then(d=>{out.ipca={v:parseFloat(d[0].valor),d:d[0].data}}),
+    sgs(1,1).then(d=>{out.ptax={v:parseFloat(d[0].valor),d:d[0].data}}),
+    sgs(12,135).then(d=>{out.cdiDaily=d.map(x=>parseFloat(x.valor))})
+  ];
+  await Promise.allSettled(jobs);
+  return out;
+}
+function renderMacro(m){
+  const set=(id,val,sub)=>{document.getElementById(id).textContent=val;if(sub!==undefined)document.getElementById(id+'D').textContent=sub};
+  if(m.selic)set('mSelic',m.selic.v.toFixed(2)+'%','desde '+m.selic.d);else set('mSelic','indisponível','');
+  if(m.cdi)set('mCdi',m.cdi.v.toFixed(2)+'%',m.cdi.d);else set('mCdi','indisponível','');
+  if(m.ipca)set('mIpca',m.ipca.v.toFixed(2)+'%','acum. até '+m.ipca.d);else set('mIpca','indisponível','');
+  if(m.ptax)set('mPtax','R$ '+m.ptax.v.toFixed(4),m.ptax.d);else set('mPtax','indisponível','');
+  if(m.selic&&m.ipca){
+    const jr=((1+m.selic.v/100)/(1+m.ipca.v/100)-1)*100;
+    mJuroReal.textContent='Juro real ex-post (Selic vs IPCA 12m): '+jr.toFixed(2)+'% a.a. — este é o "custo de oportunidade" que a PETR4 precisa bater.';
+  }
+  document.getElementById('macroKpis').classList.remove('skeleton');
+}
+
+// ---------- coleta: Tesouro Direto (pode falhar por CORS) ----------
+async function fetchTesouro(){
+  try{
+    const r=await fetch('https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsinfo.json');
+    if(!r.ok)throw 0;
+    const js=await r.json();
+    const list=js.response&&js.response.TrsrBdTradgList||[];
+    const ipcaPlus=list.map(x=>x.TrsrBd).filter(b=>b&&b.nm&&b.nm.indexOf('IPCA')>=0&&b.anulInvstmtRate>0)
+      .sort((a,b)=>a.anulInvstmtRate-b.anulInvstmtRate);
+    if(ipcaPlus.length){
+      const best=ipcaPlus[ipcaPlus.length-1];
+      mTesouro.textContent='Tesouro Direto agora: '+best.nm+' pagando IPCA + '+best.anulInvstmtRate.toFixed(2)+'% a.a. (referência de renda fixa longa).';
+    }
+  }catch(e){
+    mTesouro.textContent='Taxas do Tesouro Direto: consulta bloqueada pelo navegador (normal em alguns dispositivos) — veja em tesourodireto.com.br.';
+  }
+}
+
+// ---------- coleta: brapi (PETR4 + Ibovespa, requisicoes separadas) ----------
+async function brapiQuote(sym){
+  const tok=cTok.value.trim()||DEFAULT_TOKEN;
+  const ranges=['1y','6mo','3mo'];
+  let lastErr=null;
+  for(const rg of ranges){
+    const url='https://brapi.dev/api/quote/'+encodeURIComponent(sym)
+      +'?range='+rg+'&interval=1d&fundamental=true'
+      +(tok?'&token='+encodeURIComponent(tok):'');
+    try{
+      const r=await fetch(url);
+      if(r.status===401||r.status===403)throw new Error('AUTH');
+      if(!r.ok){lastErr=new Error('HTTP '+r.status);continue}
+      const js=await r.json();
+      const q=js.results&&js.results.find(x=>x.symbol===sym)||js.results&&js.results[0];
+      if(q&&q.historicalDataPrice&&q.historicalDataPrice.length)return q;
+      lastErr=new Error('sem historico no range '+rg);
+    }catch(e){
+      if(e.message==='AUTH')throw new Error('token ausente ou invalido na brapi');
+      lastErr=e;
+    }
+  }
+  throw lastErr||new Error('falha desconhecida');
+}
+async function posQuote(sym){
+  const tok=cTok.value.trim()||DEFAULT_TOKEN;
+  const r=await fetchTimeout('https://brapi.dev/api/quote/'+encodeURIComponent(sym)+(tok?'?token='+encodeURIComponent(tok):''),9000);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const js=await r.json();
+  const q=js.results&&(js.results.find(x=>x.symbol===sym)||js.results[0]);
+  if(!q||q.regularMarketPrice==null)throw new Error('sem cotação');
+  return{px:q.regularMarketPrice,chg:q.regularMarketChangePercent!=null?q.regularMarketChangePercent:null};
+}
+async function updatePositions(){
+  if(!Array.isArray(POSITIONS)||!POSITIONS.length)return;
+  for(const p of POSITIONS){
+    try{POS_CACHE[p.tk]=await posQuote(p.tk)}
+    catch(e){POS_CACHE[p.tk]=POS_CACHE[p.tk]||{err:true}}
+  }
+  renderPositions();
+}
+function posBlock(p,i){
+  const c=POS_CACHE[p.tk]||{};
+  const px=c.px!=null?c.px:null;
+  const day=c.chg;
+  const val=px!=null?px*p.qty:null;
+  const pnl=px!=null?(px-p.pm)*p.qty:null;
+  const pnlPct=px!=null&&p.pm>0?(px/p.pm-1)*100:null;
+  const tgt=parseFloat(p.tgt)||0, stp=parseFloat(p.stp)||0;
+  const tgtPct=p.tgtPct!=null&&p.tgtPct!==''?parseFloat(p.tgtPct):(tgt>0&&p.pm>0?(tgt/p.pm-1)*100:null);
+  const invested=p.pm*p.qty;
+  const tgtTotal=tgt>0?tgt*p.qty:null;
+  const tgtProfit=tgt>0?(tgt-p.pm)*p.qty:null;
+  const dtg=px!=null&&tgt>0?(tgt/px-1)*100:null;
+  const hitStop=px!=null&&stp>0&&px<=stp;
+  const hitTgt=px!=null&&tgt>0&&px>=tgt;
+  const pnlCls=pnl==null?'nt':(pnl>=0?'up':'dn');
+  const dayCls=day==null?'nt':(day>=0?'up':'dn');
+  const tgtCls=dtg==null?'nt':(dtg>=0?'up':'dn');
+  let flags='';
+  if(hitTgt)flags+='<span class="s" style="color:var(--grn);font-weight:700;margin-left:6px">🎯 NO ALVO '+fmt(tgt)+'</span>';
+  if(hitStop)flags+='<span class="s" style="color:var(--red);font-weight:700;margin-left:6px">⚠ ABAIXO DO STOP '+fmt(stp)+'</span>';
+  return '<div class="posblock" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px;background:var(--card)">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
+      +'<b style="font-size:16px">'+p.tk+'</b>'+flags
+      +'<span style="margin-left:auto;display:flex;gap:6px">'
+      +'<button class="mini" data-pedit="'+i+'" title="editar quantidade, PM, meta e stop">✎ editar</button>'
+      +'<button class="mini" data-pdel="'+i+'" title="remover esta posição do radar">✕</button></span></div>'
+    +'<div class="grid">'
+      +'<div class="kpi"><div class="l">Preço atual</div><div class="v">'+(px!=null?fmt(px):(c.err?'indisp.':'—'))+'</div><div class="s '+dayCls+'">'+(day!=null?pct(day)+' hoje':'variação do dia')+'</div></div>'
+      +'<div class="kpi"><div class="l">Valor da posição</div><div class="v">'+(val!=null?fmt(val):'—')+'</div><div class="s nt">'+p.qty+' ações · PM '+fmt(p.pm)+'</div></div>'
+      +'<div class="kpi"><div class="l">Resultado (R$)</div><div class="v '+pnlCls+'">'+(pnl!=null?((pnl>=0?'+':'−')+fmt(Math.abs(pnl))):'—')+'</div><div class="s '+pnlCls+'">'+(pnlPct!=null?pct(pnlPct)+' vs. preço médio':'vs. preço médio')+'</div></div>'
+      +'<div class="kpi"><div class="l">Distância da meta</div><div class="v '+tgtCls+'">'+(dtg!=null?pct(dtg):'—')+'</div><div class="s nt">'+(tgt>0?'meta '+fmt(tgt)+'/ação ('+(tgtPct>=0?'+':'')+tgtPct.toFixed(1)+'% sobre os '+fmt(invested)+' investidos)':'defina a meta ao editar')+'</div></div>'
+      +(tgt>0?'<div class="kpi"><div class="l">Se vender na meta</div><div class="v up">'+fmt(tgtTotal)+'</div><div class="s up">lucro de +'+fmt(tgtProfit)+'</div></div>':'')
+    +'</div></div>';
+}
+function fmtD(d){ if(!d)return '—'; const p=String(d).split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):d; }
+function salesTotal(){ return (SALES||[]).reduce((s,v)=>s+((Number(v.px)-Number(v.pm))*Number(v.qty)),0); }
+function renderSales(){
+  const box=document.getElementById('salesList'); if(!box)return;
+  if(!Array.isArray(SALES)||!SALES.length){
+    box.innerHTML='<div class="src">Nenhuma venda registrada. Use "+ Registrar venda" quando realizar lucro — a posição é baixada sozinha.</div>';
+    renderSummary(); return;
+  }
+  const tot=salesTotal();
+  const linhas=SALES.slice().sort((a,b)=>String(b.d).localeCompare(String(a.d))).map((v,i)=>{
+    const lucro=(Number(v.px)-Number(v.pm))*Number(v.qty);
+    const pctv=Number(v.pm)>0?((Number(v.px)/Number(v.pm)-1)*100):null;
+    const cls=lucro>=0?'up':'dn';
+    const ix=SALES.indexOf(v);
+    return '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--card2)">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<b>'+v.tk+'</b><span class="s nt">'+fmtD(v.d)+' · '+v.qty+' ações a '+fmt(v.px)+'</span>'
+      +'<span style="margin-left:auto"><button class="mini" data-sdel="'+ix+'" title="remover este registro (não devolve a quantidade à posição)">✕</button></span></div>'
+      +'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:13px">'
+      +'<span class="s nt">PM na época: '+fmt(v.pm)+'</span>'
+      +'<span class="'+cls+'">Lucro realizado: <b>'+(lucro>=0?'+':'−')+fmt(Math.abs(lucro))+'</b>'+(pctv!=null?' ('+pct(pctv)+')':'')+'</span>'
+      +'<span class="s nt">Bruto recebido: '+fmt(Number(v.px)*Number(v.qty))+'</span>'
+      +'</div></div>';
+  }).join('');
+  box.innerHTML=linhas
+    +'<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px;display:flex;gap:6px;align-items:baseline">'
+    +'<span class="s nt">Total já realizado:</span> <b class="'+(tot>=0?'up':'dn')+'" style="font-size:16px">'+(tot>=0?'+':'−')+fmt(Math.abs(tot))+'</b></div>';
+  box.querySelectorAll('[data-sdel]').forEach(b=>b.onclick=async()=>{
+    const i=+b.dataset.sdel;
+    if(!confirm('Remover este registro de venda? A quantidade NÃO volta para a posição — ajuste manualmente se precisar.'))return;
+    SALES.splice(i,1); await saveCfg(); renderSales();
+  });
+  renderSummary();
+}
+function renderSummary(){
+  renderReport();
+  const box=document.getElementById('posSummary'); if(!box)return;
+  if(!Array.isArray(POSITIONS)||!POSITIONS.length){box.innerHTML='';return}
+  let inv=0, val=0, temTudo=true;
+  POSITIONS.forEach(p=>{
+    inv += Number(p.pm)*Number(p.qty);
+    const c=POS_CACHE[p.tk];
+    if(c&&c.px!=null) val += c.px*Number(p.qty); else temTudo=false;
+  });
+  const naoReal = temTudo ? (val-inv) : null;
+  const real = salesTotal();
+  const tot = naoReal!=null ? (naoReal+real) : null;
+  const cls=v=>v==null?'nt':(v>=0?'up':'dn');
+  const sig=v=>(v>=0?'+':'−')+fmt(Math.abs(v));
+  box.innerHTML='<div class="grid" style="margin-bottom:12px">'
+    +'<div class="kpi"><div class="l">Investido (em carteira)</div><div class="v">'+fmt(inv)+'</div><div class="s nt">'+POSITIONS.length+' posição(ões)</div></div>'
+    +'<div class="kpi"><div class="l">Valor atual</div><div class="v">'+(temTudo?fmt(val):'—')+'</div><div class="s nt">'+(temTudo?'cotações do dia':'aguardando cotações')+'</div></div>'
+    +'<div class="kpi"><div class="l">Resultado não realizado</div><div class="v '+cls(naoReal)+'">'+(naoReal!=null?sig(naoReal):'—')+'</div><div class="s nt">posições em aberto</div></div>'
+    +'<div class="kpi"><div class="l">Resultado consolidado</div><div class="v '+cls(tot)+'">'+(tot!=null?sig(tot):'—')+'</div><div class="s '+cls(real)+'">inclui '+sig(real)+' já realizado</div></div>'
+    +'</div>';
+}
+// ---------- relatório gerencial: cálculo (compartilhado entre tela e exportações) ----------
+function computeReport(){
+  const tickers=[];
+  (Array.isArray(POSITIONS)?POSITIONS:[]).forEach(p=>{if(!tickers.includes(p.tk))tickers.push(p.tk)});
+  (Array.isArray(SALES)?SALES:[]).forEach(s=>{if(!tickers.includes(s.tk))tickers.push(s.tk)});
+  if(!tickers.length)return null;
+  let totInv=0, totVal=0, totUnreal=0, temTudoAberto=true, qtdAberto=0;
+  let totRealCost=0, totReal=0, salesCount=0, winCount=0;
+  let best=null, worst=null;
+  const rows=[];
+  tickers.forEach(tk=>{
+    const p=(POSITIONS||[]).find(x=>x.tk===tk);
+    const c=POS_CACHE[tk]||{};
+    const qtyOpen=p?Number(p.qty):0, pmOpen=p?Number(p.pm):0;
+    const invested=p?qtyOpen*pmOpen:0;
+    const px=c.px!=null?c.px:null;
+    const curVal=(p&&px!=null)?px*qtyOpen:null;
+    const unreal=(p&&curVal!=null)?curVal-invested:null;
+    const tkSales=(SALES||[]).filter(s=>s.tk===tk);
+    let realCost=0, realProfit=0;
+    tkSales.forEach(s=>{
+      const cost=Number(s.pm)*Number(s.qty), rev=Number(s.px)*Number(s.qty);
+      realCost+=cost; realProfit+=(rev-cost);
+      salesCount++; if(rev-cost>=0)winCount++;
+    });
+    const total=(unreal||0)+realProfit;
+    const baseInvestedTotal=invested+realCost;
+    const retPct=baseInvestedTotal>0?(total/baseInvestedTotal*100):null;
+    if(p){qtdAberto++;totInv+=invested;if(curVal==null)temTudoAberto=false;else{totVal+=curVal;totUnreal+=unreal}}
+    totRealCost+=realCost; totReal+=realProfit;
+    if(best==null||total>best.total)best={tk,total};
+    if(worst==null||total<worst.total)worst={tk,total};
+    rows.push({tk,invested,curVal,unreal,realProfit,total,retPct,hasOpen:!!p,hasSales:tkSales.length>0,priceErr:!!(p&&curVal==null)});
+  });
+  rows.sort((a,b)=>b.total-a.total);
+  const totalConsolidado=totUnreal+totReal;
+  const winRate=salesCount>0?(winCount/salesCount*100):null;
+  return{rows,totInv,totVal,totUnreal,temTudoAberto,qtdAberto,totRealCost,totReal,salesCount,winCount,winRate,best,worst,totalConsolidado};
+}
+// ---------- relatório gerencial: renderização em tela ----------
+function renderReport(){
+  const kpisBox=document.getElementById('reportKpis');
+  const body=document.getElementById('reportBody');
+  const emptyBox=document.getElementById('reportEmpty');
+  const stampBox=document.getElementById('reportStamp');
+  if(!kpisBox||!body)return;
+  const cls=v=>v==null?'nt':(v>=0?'up':'dn');
+  const sig=v=>v==null?'—':((v>=0?'+':'−')+fmt(Math.abs(v)));
+  const rep=computeReport();
+  if(stampBox)stampBox.textContent='Atualizado em '+new Date().toLocaleString('pt-BR');
+  if(!rep){
+    kpisBox.innerHTML='';
+    body.innerHTML='';
+    emptyBox.textContent='Sem posições ou vendas registradas ainda — o relatório aparece aqui assim que houver dados.';
+    return;
+  }
+  emptyBox.textContent='';
+  body.innerHTML=rep.rows.map(r=>'<tr>'
+    +'<td><b>'+r.tk+'</b>'+(!r.hasOpen?'<div class="s nt" style="font-size:10px;font-family:var(--mono)">encerrada</div>':'')+'</td>'
+    +'<td>'+(r.hasOpen?fmt(r.invested):'—')+'</td>'
+    +'<td>'+(r.curVal!=null?fmt(r.curVal):(r.priceErr?'indisp.':'—'))+'</td>'
+    +'<td class="'+cls(r.hasOpen?r.unreal:null)+'">'+(r.hasOpen?sig(r.unreal):'—')+'</td>'
+    +'<td class="'+cls(r.hasSales?r.realProfit:null)+'">'+(r.hasSales?sig(r.realProfit):'—')+'</td>'
+    +'<td class="'+cls(r.total)+'" style="font-weight:700">'+sig(r.total)+'</td>'
+    +'<td class="'+cls(r.retPct)+'">'+(r.retPct!=null?pct(r.retPct):'—')+'</td>'
+    +'</tr>').join('');
+  kpisBox.innerHTML=
+     '<div class="kpi"><div class="l">Investido (aberto)</div><div class="v">'+fmt(rep.totInv)+'</div><div class="s nt">'+rep.qtdAberto+' posição(ões) aberta(s)</div></div>'
+    +'<div class="kpi"><div class="l">Não realizado</div><div class="v '+cls(rep.totUnreal)+'">'+sig(rep.totUnreal)+'</div><div class="s nt">'+(rep.temTudoAberto?'cotações do dia':'cotações parciais')+'</div></div>'
+    +'<div class="kpi"><div class="l">Realizado</div><div class="v '+cls(rep.totReal)+'">'+sig(rep.totReal)+'</div><div class="s nt">'+rep.salesCount+' venda(s)</div></div>'
+    +'<div class="kpi"><div class="l">Resultado consolidado</div><div class="v '+cls(rep.totalConsolidado)+'">'+sig(rep.totalConsolidado)+'</div><div class="s nt">aberto + realizado</div></div>'
+    +'<div class="kpi"><div class="l">Taxa de acerto</div><div class="v sm '+(rep.winRate==null?'nt':(rep.winRate>=50?'up':'dn'))+'">'+(rep.winRate!=null?rep.winRate.toFixed(0)+'%':'—')+'</div><div class="s nt">'+(rep.salesCount?rep.winCount+' de '+rep.salesCount+' vendas no lucro':'sem vendas ainda')+'</div></div>'
+    +'<div class="kpi"><div class="l">Melhor ativo</div><div class="v sm up">'+(rep.best?rep.best.tk:'—')+'</div><div class="s nt">'+(rep.best?sig(rep.best.total):'')+'</div></div>'
+    +'<div class="kpi"><div class="l">Pior ativo</div><div class="v sm '+(rep.worst&&rep.worst.total<0?'dn':'nt')+'">'+(rep.worst?rep.worst.tk:'—')+'</div><div class="s nt">'+(rep.worst?sig(rep.worst.total):'')+'</div></div>';
+}
+// ---------- relatório gerencial: exportação XLSX ----------
+function exportReportXlsx(){
+  const rep=computeReport();
+  if(!rep){alert('Sem dados para exportar ainda.');return}
+  if(typeof XLSX==='undefined'){alert('A biblioteca de exportação não carregou (verifique sua conexão) — tente novamente.');return}
+  const num=v=>v==null?'':Number(v.toFixed(2));
+  const resumo=[
+    ['Radar de Venda — Relatório gerencial'],
+    ['Gerado em', new Date().toLocaleString('pt-BR')],
+    [],
+    ['Métrica','Valor'],
+    ['Investido (aberto)', num(rep.totInv)],
+    ['Valor atual (aberto)', rep.temTudoAberto?num(rep.totVal):'parcial/indisponível'],
+    ['Resultado não realizado', num(rep.totUnreal)],
+    ['Resultado realizado', num(rep.totReal)],
+    ['Resultado consolidado', num(rep.totalConsolidado)],
+    ['Nº de vendas', rep.salesCount],
+    ['Vendas no lucro', rep.winCount],
+    ['Taxa de acerto (%)', rep.winRate!=null?num(rep.winRate):''],
+    ['Melhor ativo', rep.best?rep.best.tk:''],
+    ['Melhor ativo — resultado', rep.best?num(rep.best.total):''],
+    ['Pior ativo', rep.worst?rep.worst.tk:''],
+    ['Pior ativo — resultado', rep.worst?num(rep.worst.total):'']
+  ];
+  const porAtivo=[
+    ['Ativo','Situação','Investido (R$)','Valor atual (R$)','Não realizado (R$)','Realizado (R$)','Total (R$)','Retorno (%)']
+  ];
+  rep.rows.forEach(r=>{
+    porAtivo.push([r.tk, r.hasOpen?'aberta':'encerrada', num(r.hasOpen?r.invested:null), num(r.curVal), num(r.hasOpen?r.unreal:null), num(r.hasSales?r.realProfit:null), num(r.total), r.retPct!=null?num(r.retPct):'']);
+  });
+  const vendas=[['Ativo','Data','Quantidade','PM na época (R$)','Preço de venda (R$)','Lucro (R$)','Bruto recebido (R$)']];
+  (SALES||[]).slice().sort((a,b)=>String(a.d).localeCompare(String(b.d))).forEach(v=>{
+    const lucro=(Number(v.px)-Number(v.pm))*Number(v.qty);
+    vendas.push([v.tk, fmtD(v.d), Number(v.qty), num(v.pm), num(v.px), num(lucro), num(Number(v.px)*Number(v.qty))]);
+  });
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(resumo),'Resumo');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(porAtivo),'Por ativo');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(vendas.length>1?vendas:[['Ativo','Data','Quantidade','PM na época (R$)','Preço de venda (R$)','Lucro (R$)','Bruto recebido (R$)'],['(nenhuma venda registrada)']]),'Vendas');
+  const stamp=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,'radar-venda-relatorio-'+stamp+'.xlsx');
+}
+// ---------- relatório gerencial: exportação PDF (via impressão do navegador) ----------
+function exportReportPdf(){
+  const rep=computeReport();
+  if(!rep){alert('Sem dados para exportar ainda.');return}
+  document.body.classList.add('printing-report');
+  setTimeout(()=>{
+    window.print();
+  },50);
+}
+window.addEventListener('afterprint',()=>document.body.classList.remove('printing-report'));
+(function(){
+  const bx=document.getElementById('btnExportXlsx'); if(bx)bx.addEventListener('click',exportReportXlsx);
+  const bp=document.getElementById('btnExportPdf'); if(bp)bp.addEventListener('click',exportReportPdf);
+})();
+function renderPositions(){
+  const box=document.getElementById('posList');if(!box)return;
+  box.classList.remove('skeleton');
+  if(!Array.isArray(POSITIONS)||!POSITIONS.length){
+    box.innerHTML='<div class="src">Nenhuma posição no radar. Toque em "+ Adicionar posição comprada" para incluir a primeira.</div>';
+    return;
+  }
+  box.innerHTML=POSITIONS.map((p,i)=>posBlock(p,i)).join('');
+  renderSummary();
+  box.querySelectorAll('[data-pdel]').forEach(b=>b.onclick=async()=>{
+    const i=+b.dataset.pdel;
+    if(!confirm('Remover a posição em '+POSITIONS[i].tk+' do radar?'))return;
+    POSITIONS.splice(i,1);await saveCfg();renderPositions();
+  });
+  box.querySelectorAll('[data-pedit]').forEach(b=>b.onclick=()=>{
+    const p=POSITIONS[+b.dataset.pedit];
+    pTk.value=p.tk;pQty.value=p.qty;pPm.value=p.pm;pTgt.value=p.tgt||'';
+    pTgtPct.value=p.tgtPct||(p.tgt&&p.pm?((parseFloat(p.tgt)/p.pm-1)*100).toFixed(2):'');
+    pStp.value=p.stp||'';
+    const det=pTk.closest('details');if(det)det.open=true;
+    pTk.scrollIntoView({behavior:'smooth',block:'center'});pTk.focus();
+  });
+}
+async function fetchQuotes(){
+  const petr=await brapiQuote('PETR4');
+  let ibov=null;window.IBOV_ERR='';
+  try{ibov=await brapiQuote('BOVA11')}catch(e){window.IBOV_ERR=e.message||'falha'}
+  try{if(ibov)renderIbovCard(ibov)}catch(e){}
+  return{petr,ibov};
+}
+
+// ---------- coleta: noticias (Google News RSS via proxy CORS) ----------
+const NEWS_POS=['dispara','sobe','alta','avanç','valoriza','recorde','lucro','dividendo','aprova','acordo','cessar-fogo','liberado','liberação','descoberta','supera','exporta','melhora','otimis','compra de volta','recompra','reduz dívida','upgrade','eleva recomendação'];
+const NEWS_NEG=['despenca','cai','queda','tomba','recua','greve','interfer','investiga','cade ','multa','guerra','ataque','tensão','míssil','tarifa','imposto','prejuízo','corta dividendo','renúncia','demiss','downgrade','rebaixa','crise','fecha','bloqueio','sanç'];
+function newsScore(title){
+  const t=title.toLowerCase();
+  let s=0;
+  for(const w of NEWS_POS)if(t.includes(w))s++;
+  for(const w of NEWS_NEG)if(t.includes(w))s--;
+  return Math.max(-2,Math.min(2,s));
+}
+// perspectiva PETR4: contexto de petróleo muda o sinal
+const OIL_CTX=['petróleo','petroleo','brent','wti','ormuz','irã',' ira ','oriente médio','opep','barril'];
+const OIL_UP=['dispara','sobe','alta','avanç','salta','recorde','supera'];
+const OIL_DOWN=['despenca','cai','queda','recua','tomba','desaba','derrete'];
+const OIL_TENSION=['tensão','guerra','ataque','míssil','conflito','escalada','bloqueio','sanç','fecha'];
+const OIL_RELIEF=['cessar-fogo','acordo','paz','liberado','liberação','alívio','trégua','desescalada','normaliza'];
+function petrScore(title){
+  const t=' '+title.toLowerCase()+' ';
+  const hasOil=OIL_CTX.some(w=>t.includes(w));
+  if(!hasOil)return null;
+  let s=0;
+  if(OIL_UP.some(w=>t.includes(w)))s++;
+  if(OIL_TENSION.some(w=>t.includes(w)))s++;
+  if(OIL_DOWN.some(w=>t.includes(w)))s--;
+  if(OIL_RELIEF.some(w=>t.includes(w)))s--;
+  return s===0?null:Math.max(-1,Math.min(1,s));
+}
+function fetchTimeout(url,ms){
+  const ctl=new AbortController();
+  const t=setTimeout(()=>ctl.abort(),ms);
+  return fetch(url,{signal:ctl.signal}).finally(()=>clearTimeout(t));
+}
+async function fetchNews(){
+  // 3 feeds independentes × 5 rotas de proxy — o primeiro combo que responder vence
+  const FEEDS=[
+    'https://news.google.com/rss/search?q='+encodeURIComponent('Ibovespa OR bolsa OR Petrobras OR bancos OR Selic')+'&hl=pt-BR&gl=BR&ceid=BR:pt-419',
+    'https://www.infomoney.com.br/feed/',
+    'https://www.moneytimes.com.br/feed/'
+  ];
+  const KEEP=/petrobras|petr4|petróleo|petroleo|brent|opep|ormuz|ibovespa|mercado|selic|juros|dólar|dolar|bolsa|b3/i;
+  const parseXml=xml=>{
+    const doc=new DOMParser().parseFromString(xml,'text/xml');
+    return [...doc.querySelectorAll('item')].map(it=>({
+      title:(it.querySelector('title')||{}).textContent||'',
+      link:(it.querySelector('link')||{}).textContent||'#',
+      date:new Date((it.querySelector('pubDate')||{}).textContent||Date.now()),
+      src:(it.querySelector('source')||{}).textContent||''
+    }));
+  };
+  const pick=arr=>{
+    const f=arr.filter(n=>KEEP.test(n.title));
+    return (f.length>=3?f:arr).slice(0,8);
+  };
+  for(const feed of FEEDS){
+    // rota dedicada: rss2json (JSON pronto, CORS liberado)
+    try{
+      const r=await fetchTimeout('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(feed),8000);
+      if(r.ok){
+        const js=await r.json();
+        if(js&&js.status==='ok'&&js.items&&js.items.length){
+          const its=js.items.map(it=>({title:it.title||'',link:it.link||'#',date:new Date(it.pubDate?it.pubDate.replace(' ','T'):Date.now()),src:it.author||''}));
+          const out=pick(its);
+          if(out.length)return newsCacheSave(out);
+        }
+      }
+    }catch(e){}
+    // rotas genéricas devolvendo o XML cru
+    const routes=[
+      {u:'https://api.allorigins.win/raw?url='+encodeURIComponent(feed),json:false},
+      {u:'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(feed),json:false},
+      {u:'https://corsproxy.io/?url='+encodeURIComponent(feed),json:false},
+      {u:'https://api.allorigins.win/get?url='+encodeURIComponent(feed),json:true}
+    ];
+    for(const rt of routes){
+      try{
+        const r=await fetchTimeout(rt.u,7000);
+        if(!r.ok)continue;
+        let body=await r.text();
+        if(rt.json){try{body=JSON.parse(body).contents||''}catch(e){body=''}}
+        if(body&&body.indexOf('<item>')>=0){
+          const out=pick(parseXml(body));
+          if(out.length)return newsCacheSave(out);
+        }
+      }catch(e){}
+    }
+  }
+  throw new Error('feeds indisponíveis');
+}
+// cache das últimas manchetes válidas — fora do cofre (manchetes são públicas)
+function newsCacheSave(items){
+  try{localStorage.setItem('rp_news_cache',JSON.stringify({t:Date.now(),items:items.map(n=>({title:n.title,link:n.link,date:+n.date,src:n.src}))}))}catch(e){}
+  return items;
+}
+function newsCacheLoad(){
+  try{
+    const j=JSON.parse(localStorage.getItem('rp_news_cache')||'null');
+    if(!j||!j.items||!j.items.length)return null;
+    return {t:j.t,items:j.items.map(n=>({title:n.title,link:n.link,date:new Date(n.date),src:n.src}))};
+  }catch(e){return null}
+}
+function renderNews(items){
+  lastNewsItems=items;
+  let total=0;
+  const rows=items.map(n=>{
+    const s=newsScore(n.title);total+=s;
+    const p=petrScore(n.title);
+    const col=s>0?'var(--grn)':s<0?'var(--red)':'var(--dim)';
+    const tag=s>0?'positivo':s<0?'negativo':'neutro';
+    let pTag='';
+    if(p!==null){
+      const pcol=p>0?'var(--grn)':'var(--red)';
+      const ptxt=p>0?'petróleo↑ tende a favorecer PETR4':'petróleo↓ tende a pesar na PETR4';
+      pTag=' · <span style="color:'+pcol+'">'+ptxt+'</span>';
+      const dotCol=p>0?'var(--grn)':'var(--red)';
+      return '<div class="sig"><span class="dot" style="background:'+dotCol+'"></span><div><div class="t"><a href="'+n.link+'" target="_blank" rel="noopener" style="color:var(--txt);text-decoration:none">'+n.title+'</a></div><div class="d">'+n.date.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+n.date.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+(n.src?' · '+n.src:'')+' · <span style="color:'+col+'">mercado: '+tag+'</span>'+pTag+'</div></div></div>';
+    }
+    const when=n.date.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+n.date.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    return '<div class="sig"><span class="dot" style="background:'+col+'"></span><div><div class="t"><a href="'+n.link+'" target="_blank" rel="noopener" style="color:var(--txt);text-decoration:none">'+n.title+'</a></div><div class="d">'+when+(n.src?' · '+n.src:'')+' · <span style="color:'+col+'">'+tag+'</span></div></div></div>';
+  });
+  newsList.innerHTML=rows.join('')||'<div class="sig"><div class="t">Sem manchetes no momento.</div></div>';
+  const mood=total>=2?'favorável':total<=-2?'desfavorável':'misto / neutro';
+  const mcol=total>=2?'up':total<=-2?'dn':'nt';
+  newsMood.textContent=mood;
+  newsMood.className='v sm '+mcol;
+  newsMoodD.textContent='soma de '+items.length+' manchetes recentes · não entra no termômetro técnico';
+}
+async function updateNews(){
+  try{renderNews(await fetchNews())}
+  catch(e){
+    const cache=newsCacheLoad();
+    if(cache){
+      renderNews(cache.items);
+      const dt=new Date(cache.t);
+      newsMoodD.textContent='⚠ feeds fora do ar — exibindo manchetes em cache de '+dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · toque em ↻ para tentar de novo';
+      return;
+    }
+    newsMood.textContent='indisponível';newsMood.className='v sm nt';
+    newsMoodD.textContent='';
+    newsList.innerHTML='<div class="sig"><span class="dot" style="background:var(--dim)"></span><div><div class="t">Não consegui ler os feeds agora (proxies gratuitos fora do ar ou sem conexão) — tentei 3 feeds por até 5 rotas.</div><div class="d">Toque em ↻ para tentar de novo · alternativa manual: g1.globo.com/economia · infomoney.com.br/mercados</div></div></div>';
+  }
+}
+
+// ---------- orquestração ----------
+function firstRunNotice(){
+  errBox.style.display='block';
+  errBox.style.background='rgba(253,200,47,.08)';
+  errBox.style.borderColor='rgba(253,200,47,.35)';
+  errBox.innerHTML=ERRCLOSE+'<b>Bem-vindo! Falta só um passo.</b> Para as cotações funcionarem, crie um token gratuito em <a href="https://brapi.dev/dashboard" target="_blank" rel="noopener" style="color:var(--ylw)">brapi.dev/dashboard</a> (leva 2 min, sem cartão) e cole nas Configurações logo abaixo. Os dados do Banco Central já estão funcionando sem token.';
+  cfgBox.open=true;
+}
+const ERRCLOSE='<button class="errclose" onclick="document.getElementById(&quot;errBox&quot;).style.display=&quot;none&quot;" title="fechar este aviso" aria-label="fechar aviso">✕</button>';
+const FX_URL='https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,BTC-BRL';
+async function loadFx(){
+  const box=document.getElementById('fxKpis');if(!box)return;
+  try{
+    const r=await fetch(FX_URL,{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    const cell=(nome,o,dec)=>{
+      if(!o)return '<div class="kv"><b>—</b><span>'+nome+'</span></div>';
+      const v=parseFloat(o.bid),pc=parseFloat(o.pctChange);
+      const cor=pc>0?'var(--green,#19c37d)':pc<0?'var(--red,#f0616d)':'var(--mut)';
+      return '<div class="kv"><b>R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec})
+        +' <span style="color:'+cor+';font-size:11px;font-weight:700">'+(pc>0?'▲':pc<0?'▼':'')+' '+Math.abs(pc).toFixed(2).replace('.',',')+'%</span></b>'
+        +'<span>'+nome+'</span></div>';
+    };
+    box.innerHTML=cell('Dólar (USD)',j.USDBRL,2)+cell('Euro (EUR)',j.EURBRL,2)+cell('Bitcoin (BTC)',j.BTCBRL,0);
+  }catch(e){
+    box.innerHTML='<div class="kv"><b>—</b><span>câmbio indisponível ('+e.message+')</span></div>';
+  }
+}
+async function fetchData(){
+  loadFx();
+  updatePositions();
+  errBox.style.display='none';
+  errBox.style.background='';
+  errBox.style.borderColor='';
+  stamp.innerHTML='atualizando…';
+  const [q,m]=await Promise.allSettled([fetchQuotes(),fetchMacro()]);
+  fetchTesouro();
+  updateNews();
+  let macro=null;
+  if(m.status==='fulfilled'){macro=m.value;renderMacro(macro)}
+  else{mJuroReal.textContent='Séries do Banco Central indisponíveis no momento.'}
+  lastFetch=Date.now();
+  const t=new Date();
+  stamp.innerHTML='atualizado às <b>'+t.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b> · '+t.toLocaleDateString('pt-BR')+' · próxima em 3h';
+  if(q.status==='rejected'){
+    if(!(cTok.value.trim()||DEFAULT_TOKEN)){
+      firstRunNotice();
+      stamp.innerHTML='macro do BC ativa · cotações aguardando token';
+    }else{
+      errBox.style.display='block';
+      errBox.innerHTML=ERRCLOSE+'<b>Aviso ao buscar o Ibovespa.</b> As cotações das suas ações usam outra rota e podem ter atualizado normalmente. Motivo do aviso: '+q.reason.message+'.';
+    }
+  }
+}
+
+// ---------- render principal (mercado geral; posições têm render próprio) ----------
+function render(q,ibov,macro){
+  // No Radar de Venda as cotações por ação são tratadas em updatePositions()/renderPositions().
+  // Esta função mantém apenas o carimbo de horário e o cartão do Ibovespa (já renderizado em fetchData).
+  renderPositions();
+}
+
+// ---------- eventos ----------
+btnRefresh.addEventListener('click',fetchData);
+btnNews.addEventListener('click',()=>{newsMood.textContent='carregando…';newsMood.className='v sm nt';updateNews()});
+let lastNewsItems=[];
+btnCopyNews.addEventListener('click',async()=>{
+  let txt='Atue como meu CIO (radar de venda). Minhas posições compradas:\n';
+  if(Array.isArray(POSITIONS)&&POSITIONS.length){
+    POSITIONS.forEach(p=>{
+      const c=POS_CACHE[p.tk]||{};
+      const px=c.px!=null?fmt(c.px):'s/ cotação';
+      const metaPct=p.tgtPct!=null&&p.tgtPct!==''?parseFloat(p.tgtPct):(parseFloat(p.tgt)>0&&p.pm>0?(parseFloat(p.tgt)/p.pm-1)*100:null);
+      const meta=parseFloat(p.tgt)>0?(', meta de venda R$ '+p.tgt+(metaPct!=null?' ('+(metaPct>=0?'+':'')+metaPct.toFixed(1)+'% de lucro sobre o investido)':'')):'';
+      const stop=parseFloat(p.stp)>0?(', stop R$ '+p.stp):'';
+      txt+='• '+p.tk+': '+p.qty+' ações, PM '+fmt(p.pm)+', cotação '+px+meta+stop+'\n';
+    });
+  }else{txt+='(nenhuma posição cadastrada)\n';}
+  txt+='\nManchetes de hoje captadas pelo meu radar:\n';
+  if(lastNewsItems.length){
+    lastNewsItems.forEach((n,i)=>{txt+=(i+1)+'. '+n.title+(n.src?' ('+n.src+')':'')+'\n'});
+  }else{
+    txt+='(radar de notícias indisponível no momento)\n';
+  }
+  txt+='\nMe dê um parecer conciso por ação: 1) proximidade da minha meta de venda e se faz sentido realizar; 2) impacto das notícias no ativo e no mercado; 3) o que monitorar nos próximos dias; 4) sinais de atenção para cada posição. Classifique fato vs. opinião e lembre que a decisão é minha.';
+  try{await navigator.clipboard.writeText(txt);btnCopyNews.textContent='✓ Copiado! Cole no Claude';}
+  catch(e){prompt('Copie o texto abaixo:',txt)}
+  setTimeout(()=>{btnCopyNews.textContent='📋 Copiar p/ análise do CIO (colar no Claude)'},4000);
+});
+btnPareSave.addEventListener('click',async()=>{
+  const at=new Date().toLocaleDateString('pt-BR')+' '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  store('pareAt',at);
+  renderParecer(pareText.value,at);
+  await saveCfg();
+  btnPareSave.textContent='✓ Salvo no cofre';
+  setTimeout(()=>{btnPareSave.textContent='Salvar parecer (cifrado)'},3000);
+});
+btnSave.addEventListener('click',async()=>{await saveCfg();fetchData();cfgBox.open=false});
+let ACT_T=null,ACT_LAST='';
+pTk.addEventListener('input',()=>{
+  const q=pTk.value.trim().toUpperCase();
+  if(q.length<2||q===ACT_LAST)return;
+  clearTimeout(ACT_T);
+  ACT_T=setTimeout(async()=>{
+    ACT_LAST=q;
+    try{
+      const tok=cTok.value.trim()||DEFAULT_TOKEN;
+      const r=await fetch('https://brapi.dev/api/available?search='+encodeURIComponent(q)+'&token='+encodeURIComponent(tok));
+      if(!r.ok)return;
+      const j=await r.json();
+      document.getElementById('tkList').innerHTML=(j.stocks||[]).slice(0,12).map(s=>'<option value="'+s+'">').join('');
+    }catch(_){}
+  },350);
+});
+document.getElementById('sAdd').onclick=async()=>{
+  const tk=sTk.value.trim().toUpperCase();
+  const qty=parseInt(sQty.value,10)||0, px=parseFloat(sPx.value)||0;
+  const d=sDt.value||new Date().toISOString().slice(0,10);
+  if(!/^[A-Z0-9]{4,8}$/.test(tk)){alert('Ticker inválido — ex.: PETR4.');return}
+  if(qty<=0||px<=0){alert('Quantidade e preço de venda precisam ser maiores que zero.');return}
+  const p=POSITIONS.find(x=>x.tk===tk);
+  if(!p){alert('Não encontrei a posição em '+tk+'. Cadastre a posição antes de registrar a venda.');return}
+  if(qty>Number(p.qty)){alert('Você tem '+p.qty+' ações de '+tk+' — não dá para vender '+qty+'.');return}
+  if(!SALES)SALES=[];
+  SALES.push({tk,qty,px,pm:Number(p.pm),d});
+  p.qty=Number(p.qty)-qty;
+  const zerou=p.qty<=0;
+  if(zerou&&confirm('A posição em '+tk+' foi zerada. Remover do painel? (o registro da venda permanece)')){
+    POSITIONS.splice(POSITIONS.indexOf(p),1);
+  }
+  sTk.value='';sQty.value='';sPx.value='';sDt.value='';
+  await saveCfg(); renderPositions(); renderSales(); updatePositions();
+};
+// meta de venda: sincroniza R$ <-> % em tempo real, usando o preço médio informado
+(function(){
+  if(!pTgt||!pTgtPct||!pPm)return;
+  pTgt.addEventListener('input',()=>{
+    const pm=parseFloat(pPm.value)||0, tgt=parseFloat(pTgt.value);
+    pTgtPct.value=(pm>0&&!isNaN(tgt))?((tgt/pm-1)*100).toFixed(2):'';
+  });
+  pTgtPct.addEventListener('input',()=>{
+    const pm=parseFloat(pPm.value)||0, pctv=parseFloat(pTgtPct.value);
+    pTgt.value=(pm>0&&!isNaN(pctv))?(pm*(1+pctv/100)).toFixed(2):'';
+  });
+})();
+document.getElementById('pAdd').onclick=async()=>{
+  const tk=pTk.value.trim().toUpperCase();
+  const qty=parseInt(pQty.value,10)||0, pm=parseFloat(pPm.value)||0;
+  if(!/^[A-Z0-9]{4,8}$/.test(tk)){alert('Ticker inválido — ex.: SANB11, VALE3.');return}
+  if(qty<=0||pm<=0){alert('Quantidade e preço médio precisam ser maiores que zero.');return}
+  let tgtVal=pTgt.value||'', tgtPctVal=pTgtPct.value||'';
+  if(tgtPctVal!==''&&tgtVal===''){
+    // meta informada só em % -> calcula o R$ a partir do preço médio
+    tgtVal=(pm*(1+parseFloat(tgtPctVal)/100)).toFixed(2);
+  }else if(tgtVal!==''&&tgtPctVal===''){
+    // meta informada só em R$ -> calcula o % equivalente sobre o preço médio
+    tgtPctVal=((parseFloat(tgtVal)/pm-1)*100).toFixed(2);
+  }
+  const item={tk,qty,pm,tgt:tgtVal,tgtPct:tgtPctVal,stp:pStp.value||''};
+  const ix=POSITIONS.findIndex(p=>p.tk===tk);
+  if(ix>=0)POSITIONS[ix]=item;else POSITIONS.push(item);
+  pTk.value='';pQty.value='';pPm.value='';pTgt.value='';pTgtPct.value='';pStp.value='';
+  await saveCfg();renderPositions();updatePositions();
+};
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&sessionReady()&&Date.now()-lastFetch>REFRESH_MS)fetchData()});
+let RSZ_T=null;
+window.addEventListener('resize',()=>{
+  clearTimeout(RSZ_T);
+  RSZ_T=setTimeout(()=>{try{if(LAST_IBOV)renderIbovCard(LAST_IBOV)}catch(e){}},250);
+});
+setInterval(()=>{if(sessionReady())fetchData()},REFRESH_MS);
+
+btnPinOn.addEventListener('click',async()=>{
+  if(!cryptoOK){refreshPinStatus();return}
+  const pin=cPin.value.trim();
+  if(pin.length<4){pinStatus.textContent='O PIN precisa ter pelo menos 4 dígitos.';return}
+  sessionPin=pin;
+  await encWrite(pin,collectCfg());
+  wipeKeys();cPin.value='';
+  pinStatus.textContent='✓ PIN alterado. Use o novo PIN na próxima abertura.';
+});
+let setupMode=false;
+btnUnlock.addEventListener('click',doUnlock);
+lockPin.addEventListener('keydown',e=>{if(e.key==='Enter'){if(setupMode)lockPin2.focus();else doUnlock()}});
+lockPin2.addEventListener('keydown',e=>{if(e.key==='Enter')doUnlock()});
+async function doUnlock(){
+  const pin=lockPin.value.trim();
+  if(setupMode){
+    if(pin.length<4){lockMsg.textContent='O PIN precisa ter pelo menos 4 dígitos.';return}
+    if(pin!==lockPin2.value.trim()){lockMsg.textContent='Os dois campos não conferem.';lockPin2.value='';lockPin2.focus();return}
+    try{const h=lockHint.value.trim();if(h)localStorage.setItem('rp_pin_hint',h.slice(0,80))}catch(e){}
+    sessionPin=pin;
+    loadCfg();
+    await saveCfg();
+    setupMode=false;
+    hideLock();
+    fetchData();
+    return;
+  }
+  try{
+    const cfg=await encRead(pin);
+    sessionPin=pin;
+    applyCfg(cfg);
+    hideLock();
+    fetchData();
+  }catch(e){
+    lockMsg.textContent='PIN incorreto. Tente novamente.';
+    lockPin.value='';lockPin.focus();
+  }
+}
+function hideLock(){
+  lock.style.display='none';
+  lockPin.value='';lockPin2.value='';lockMsg.textContent='';
+  refreshPinStatus();
+}
+function showLock(){
+  refreshPinStatus();
+  setupMode=!hasEnc();
+  if(setupMode){
+    lockTitle.textContent='Crie seu PIN';
+    lockSub.innerHTML='Primeiro acesso neste local: defina um PIN de 4+ dígitos. Ele cifra seus dados com AES-256 e será pedido em toda abertura.<br><b style="color:var(--ylw,#fdc82f)">⚠ Memorize bem: NÃO existe recuperação.</b> Sem o PIN, a única saída é apagar tudo. Se quiser, deixe uma dica abaixo (fica visível fora do cofre — nunca escreva o próprio PIN nela).';
+    lockHint.style.display='block';
+    lockPin2.style.display='block';
+    btnUnlock.textContent='Criar PIN e entrar';
+    btnWipe.style.display='none';
+  }else{
+    lockTitle.textContent='Painel protegido';
+    lockSub.textContent='Digite o PIN para abrir.';
+    lockHint.style.display='none';
+    try{const h=localStorage.getItem('rp_pin_hint');if(h){lockHintShow.textContent='💡 sua dica: '+h;lockHintShow.style.display='block'}else{lockHintShow.style.display='none'}}catch(e){}
+    lockPin2.style.display='none';
+    btnUnlock.textContent='Desbloquear';
+    btnWipe.style.display='block';
+  }
+  lock.style.display='flex';
+  setTimeout(()=>lockPin.focus(),100);
+}
+btnWipe.addEventListener('click',()=>{
+  if(!confirm('Apagar TODOS os dados salvos deste painel neste aparelho? Não há como recuperar sem o PIN.'))return;
+  try{localStorage.removeItem(ENC_KEY)}catch(e){}
+  wipeKeys();
+  sessionPin=null;
+  showLock();
+});
+
+function sessionReady(){return sessionPin!==null||!cryptoOK}
+const RELOCK_MS=10*60*1000;let hiddenAt=null;
+function boot(){
+  if(!cryptoOK){
+    loadCfg();
+    refreshPinStatus();
+    fetchData();
+    return;
+  }
+  showLock();
+  fetchMacro().then(renderMacro).catch(()=>{});
+  updateNews();
+}
+
+// ---- agenda: adicionar evento (venda) ----
+(function(){
+  const btn=document.getElementById('evtAdd');
+  if(!btn)return;
+  btn.addEventListener('click',async function(){
+    const tk=(document.getElementById('evtTk').value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
+    const d=(document.getElementById('evtD').value||'').trim();
+    const t=(document.getElementById('evtT').value||'').trim();
+    if(!d||!t){alert('Preencha ao menos a data e a descrição do evento.');return}
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){alert('Data inválida.');return}
+    EVENTS.push({d,txt:t,tk});
+    document.getElementById('evtTk').value='';
+    document.getElementById('evtD').value='';
+    document.getElementById('evtT').value='';
+    await saveCfg();renderAgenda();
+  });
+})();
+
+// agenda venda: handler evtAdd
+(function(){
+  var btn=document.getElementById('evtAdd');if(!btn)return;
+  btn.addEventListener('click',async function(){
+    var tk=(document.getElementById('evtTk').value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
+    var d=(document.getElementById('evtD').value||'').trim();
+    var t=(document.getElementById('evtT').value||'').trim();
+    if(!d||!t){alert('Preencha ao menos a data e a descrição.');return;}
+    EVENTS.push({d:d,txt:t,tk:tk});
+    document.getElementById('evtTk').value='';document.getElementById('evtD').value='';document.getElementById('evtT').value='';
+    await saveCfg();renderAgenda();
+  });
+})();
+// agenda venda: handler evtAdd
+(function(){
+  var btn=document.getElementById('evtAdd');if(!btn)return;
+  btn.addEventListener('click',async function(){
+    var tk=(document.getElementById('evtTk').value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
+    var d=(document.getElementById('evtD').value||'').trim();
+    var t=(document.getElementById('evtT').value||'').trim();
+    if(!d||!t){alert('Preencha ao menos a data e a descrição.');return;}
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){alert('Data inválida.');return;}
+    EVENTS.push({d:d,txt:t,tk:tk});
+    document.getElementById('evtTk').value='';document.getElementById('evtD').value='';document.getElementById('evtT').value='';
+    await saveCfg();renderAgenda();
+  });
+})();
+window.__venda={
+  onUnlock:function(cfg){
+    sessionPin='__unified__';
+    if(cfg){applyCfg(cfg);} else {loadCfg(); saveCfg();}
+    fetchData();
+    fetchMacro().then(renderMacro).catch(function(){});
+    updateNews();
+  },
+  onLock:function(){ sessionPin=null; }
+};
+
+</script>
+</body>
+</html>
