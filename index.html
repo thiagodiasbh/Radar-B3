@@ -516,6 +516,8 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
         <input type="number" id="pQty" placeholder="nº de ações" min="1" step="1" style="width:80px"></label>
       <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Preço médio (R$)
         <input type="number" id="pPm" placeholder="quanto pagou" min="0" step="0.01" style="width:96px"></label>
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Data da compra · opcional
+        <input type="date" id="pDate" style="width:140px"></label>
       <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Meta de venda (R$) · opcional
         <input type="number" id="pTgt" placeholder="alvo de saída" min="0" step="0.01" style="width:110px"></label>
       <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Meta de venda (%) · opcional
@@ -525,6 +527,17 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
       <button class="mini" id="pAdd" style="height:38px">Salvar</button>
     </div>
     <p class="hint" style="margin-top:6px">Meta e stop são opcionais e podem ser editados por ação a qualquer momento — a régua é sua, não do painel. Preencha a meta em R$ <b>ou</b> em % de lucro sobre o valor investido nesta posição (ex.: gastou R$1.600 e quer 15% de lucro → informe 15 no campo %) — o outro campo se calcula sozinho. Tudo cifrado no mesmo cofre.</p>
+  </details>
+  <details style="margin-top:10px">
+    <summary style="cursor:pointer;font-size:13px;color:var(--acc)">+ Importar posições em lote (colar lista)</summary>
+    <p class="hint" style="margin:8px 0 6px">Uma posição por linha: <code>TICKER;QUANTIDADE;PREÇO_MÉDIO;DATA_COMPRA</code> (data opcional, AAAA-MM-DD ou DD/MM/AAAA — pode separar por ; ou Tab). Se o ticker já existir numa posição, atualiza quantidade/preço médio/data e <b>mantém</b> a meta e o stop que já estavam definidos. Pra também definir/alterar meta e stop na importação, acrescente mais 2 campos: <code>;META_R$;STOP_R$</code>.</p>
+    <textarea id="pImportTxt" rows="5" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12.5px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card2,var(--card));color:inherit" placeholder="ITUB4;79;40.56;2025-03-12
+ABEV3;140;15.39;12/04/2025
+VALE3;35;72.68"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="mini" id="pImportBtn">Importar lista</button>
+    </div>
+    <div id="pImportResult" class="s nt" style="margin-top:8px;white-space:pre-line"></div>
   </details>
 </div>
 
@@ -665,6 +678,14 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
       <div><button class="btn" id="btnPinOn" style="width:100%">Trocar PIN</button></div>
     </div>
     <p class="hint" id="pinStatus"></p>
+    <label style="margin-top:16px">Backup dos dados (posições, vendas, metas, watchlist)</label>
+    <p class="hint" style="margin-top:2px">Exporta um arquivo .json com TODOS os seus dados salvos (Radar de Compra + Radar de Venda), em texto legível — útil pra levar seus dados pra uma versão nova do app. <b>O arquivo NÃO é cifrado</b> — guarde/apague com cuidado, é a foto do seu cofre aberto.</p>
+    <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" id="btnExportData">⭳ Exportar backup (.json)</button>
+      <button class="btn" id="btnImportData">⭱ Importar backup (.json)</button>
+      <input type="file" id="fileImportData" accept="application/json,.json" style="display:none">
+    </div>
+    <p class="hint" id="importDataStatus" style="margin-top:8px"></p>
     <div style="margin-top:14px;display:flex;gap:10px">
       <button class="btn grn" id="btnSave">Salvar e atualizar</button>
     </div>
@@ -2052,7 +2073,9 @@ window.__compra={
     $('cMargin').value=String(STATE.margin!=null?STATE.margin:15).replace('.',',');
     render();renderIbov();refreshAll();
   },
-  onLock:function(){ STATE=null; }
+  onLock:function(){ STATE=null; },
+  getState:function(){ return STATE; },
+  persist:async function(){ await saveVault(); }
 };
 
 })();
@@ -2433,12 +2456,16 @@ function posBlock(p,i){
   let flags='';
   if(hitTgt)flags+='<span class="s" style="color:var(--grn);font-weight:700;margin-left:6px">🎯 NO ALVO '+fmt(tgt)+'</span>';
   if(hitStop)flags+='<span class="s" style="color:var(--red);font-weight:700;margin-left:6px">⚠ ABAIXO DO STOP '+fmt(stp)+'</span>';
+  const dtLinha=p.dt
+    ?'<div class="s nt" style="margin:-6px 0 10px">comprada em '+fmtD(p.dt)+' · '+tempoDecorrido(p.dt)+'</div>'
+    :'<div class="s nt" style="margin:-6px 0 10px">data da compra não informada — <button class="mini" data-pedit="'+i+'" style="padding:1px 8px">editar</button></div>';
   return '<div class="posblock" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px;background:var(--card)">'
-    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">'
       +'<b style="font-size:16px">'+p.tk+'</b>'+flags
       +'<span style="margin-left:auto;display:flex;gap:6px">'
-      +'<button class="mini" data-pedit="'+i+'" title="editar quantidade, PM, meta e stop">✎ editar</button>'
+      +'<button class="mini" data-pedit="'+i+'" title="editar quantidade, PM, data, meta e stop">✎ editar</button>'
       +'<button class="mini" data-pdel="'+i+'" title="remover esta posição do radar">✕</button></span></div>'
+    +dtLinha
     +'<div class="grid">'
       +'<div class="kpi"><div class="l">Preço atual</div><div class="v">'+(px!=null?fmt(px):(c.err?'indisp.':'—'))+'</div><div class="s '+dayCls+'">'+(day!=null?pct(day)+' hoje':'variação do dia')+'</div></div>'
       +'<div class="kpi"><div class="l">Valor da posição</div><div class="v">'+(val!=null?fmt(val):'—')+'</div><div class="s nt">'+p.qty+' ações · PM '+fmt(p.pm)+'</div></div>'
@@ -2448,6 +2475,26 @@ function posBlock(p,i){
     +'</div></div>';
 }
 function fmtD(d){ if(!d)return '—'; const p=String(d).split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):d; }
+function tempoDecorrido(dStr){
+  if(!dStr)return '';
+  const d0=new Date(dStr+'T00:00:00');
+  if(isNaN(d0))return '';
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const dias=Math.floor((hoje-d0)/86400000);
+  if(dias<0)return 'data futura';
+  if(dias===0)return 'hoje';
+  if(dias===1)return 'há 1 dia';
+  if(dias<30)return 'há '+dias+' dias';
+  let anos=hoje.getFullYear()-d0.getFullYear();
+  let meses=hoje.getMonth()-d0.getMonth();
+  if(hoje.getDate()<d0.getDate())meses--;
+  if(meses<0){anos--;meses+=12;}
+  const partes=[];
+  if(anos>0)partes.push(anos+(anos===1?' ano':' anos'));
+  if(meses>0)partes.push(meses+(meses===1?' mês':' meses'));
+  if(!partes.length)partes.push(dias+' dias');
+  return 'há '+partes.join(' e ');
+}
 function salesTotal(){ return (SALES||[]).reduce((s,v)=>s+((Number(v.px)-Number(v.pm))*Number(v.qty)),0); }
 function renderSales(){
   const box=document.getElementById('salesList'); if(!box)return;
@@ -2652,7 +2699,7 @@ function renderPositions(){
     const p=POSITIONS[+b.dataset.pedit];
     pTk.value=p.tk;pQty.value=p.qty;pPm.value=p.pm;pTgt.value=p.tgt||'';
     pTgtPct.value=p.tgtPct||(p.tgt&&p.pm?((parseFloat(p.tgt)/p.pm-1)*100).toFixed(2):'');
-    pStp.value=p.stp||'';
+    pStp.value=p.stp||'';pDate.value=p.dt||'';
     const det=pTk.closest('details');if(det)det.open=true;
     pTk.scrollIntoView({behavior:'smooth',block:'center'});pTk.focus();
   });
@@ -2966,11 +3013,69 @@ document.getElementById('pAdd').onclick=async()=>{
     // meta informada só em R$ -> calcula o % equivalente sobre o preço médio
     tgtPctVal=((parseFloat(tgtVal)/pm-1)*100).toFixed(2);
   }
-  const item={tk,qty,pm,tgt:tgtVal,tgtPct:tgtPctVal,stp:pStp.value||''};
+  const item={tk,qty,pm,tgt:tgtVal,tgtPct:tgtPctVal,stp:pStp.value||'',dt:pDate.value||''};
   const ix=POSITIONS.findIndex(p=>p.tk===tk);
   if(ix>=0)POSITIONS[ix]=item;else POSITIONS.push(item);
-  pTk.value='';pQty.value='';pPm.value='';pTgt.value='';pTgtPct.value='';pStp.value='';
+  pTk.value='';pQty.value='';pPm.value='';pTgt.value='';pTgtPct.value='';pStp.value='';pDate.value='';
   await saveCfg();renderPositions();updatePositions();
+};
+// ---------- importação em lote (colar lista TICKER;QTD;PM;DATA[;META;STOP]) ----------
+function normalizarDataImport(s){
+  s=(s||'').trim(); if(!s)return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  const m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(m)return m[3]+'-'+m[2]+'-'+m[1];
+  return null; // formato não reconhecido
+}
+document.getElementById('pImportBtn').onclick=async()=>{
+  const txtEl=document.getElementById('pImportTxt');
+  const linhas=txtEl.value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(!linhas.length)return;
+  let importadas=0, atualizadas=0;
+  const erros=[];
+  linhas.forEach((linha,idx)=>{
+    const partes=linha.split(/;|\t/).map(x=>x.trim());
+    if(partes.length<3){erros.push('linha '+(idx+1)+': precisa de pelo menos TICKER;QUANTIDADE;PREÇO_MÉDIO — "'+linha+'"');return}
+    const tk=partes[0].toUpperCase();
+    const qty=parseInt(partes[1].replace(',','.'),10);
+    const pm=parseFloat(partes[2].replace(',','.'));
+    if(!/^[A-Z0-9]{4,8}$/.test(tk)){erros.push('linha '+(idx+1)+': ticker inválido ("'+partes[0]+'")');return}
+    if(!(qty>0)){erros.push('linha '+(idx+1)+': quantidade inválida ("'+partes[1]+'")');return}
+    if(!(pm>0)){erros.push('linha '+(idx+1)+': preço médio inválido ("'+partes[2]+'")');return}
+    let dt='';
+    if(partes[3]){
+      const nd=normalizarDataImport(partes[3]);
+      if(nd===null){erros.push('linha '+(idx+1)+': data "'+partes[3]+'" não reconhecida (use AAAA-MM-DD ou DD/MM/AAAA)');return}
+      dt=nd;
+    }
+    const tgtIn=(partes[4]!==undefined&&partes[4]!=='')?parseFloat(partes[4].replace(',','.')):null;
+    const stpIn=(partes[5]!==undefined&&partes[5]!=='')?parseFloat(partes[5].replace(',','.')):null;
+    const ix=POSITIONS.findIndex(p=>p.tk===tk);
+    if(ix>=0){
+      const p=POSITIONS[ix];
+      p.qty=qty;p.pm=pm;
+      if(dt)p.dt=dt;
+      if(tgtIn!=null&&!isNaN(tgtIn)){p.tgt=String(tgtIn);p.tgtPct=((tgtIn/pm-1)*100).toFixed(2);}
+      if(stpIn!=null&&!isNaN(stpIn))p.stp=String(stpIn);
+      atualizadas++;
+    }else{
+      POSITIONS.push({
+        tk,qty,pm,dt,
+        tgt:(tgtIn!=null&&!isNaN(tgtIn))?String(tgtIn):'',
+        tgtPct:(tgtIn!=null&&!isNaN(tgtIn))?((tgtIn/pm-1)*100).toFixed(2):'',
+        stp:(stpIn!=null&&!isNaN(stpIn))?String(stpIn):''
+      });
+      importadas++;
+    }
+  });
+  const resBox=document.getElementById('pImportResult');
+  let msg=(importadas+atualizadas)+' linha(s) processada(s): '+importadas+' nova(s), '+atualizadas+' atualizada(s).';
+  if(erros.length)msg+='\n\nCom problema (NÃO importadas — corrija e tente de novo):\n'+erros.join('\n');
+  resBox.textContent=msg;
+  if(importadas+atualizadas>0){
+    txtEl.value='';
+    await saveCfg();renderPositions();updatePositions();
+  }
 };
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&sessionReady()&&Date.now()-lastFetch>REFRESH_MS)fetchData()});
 let RSZ_T=null;
@@ -3121,6 +3226,53 @@ window.__venda={
     updateNews();
   },
   onLock:function(){ sessionPin=null; }
+};
+
+// ---------------- backup: exportar/importar TODOS os dados (compra + venda) ----------------
+document.getElementById('btnExportData').onclick=()=>{
+  const statusEl=document.getElementById('importDataStatus');
+  try{
+    const compraState=(window.__compra&&window.__compra.getState)?window.__compra.getState():null;
+    const vendaState=(typeof collectCfg==='function')?collectCfg():null;
+    const payload={app:'radar-b3',formato:1,exportadoEm:new Date().toISOString(),compra:compraState,venda:vendaState};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download='radar-b3-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    statusEl.textContent='Backup exportado ✓';
+  }catch(e){
+    statusEl.textContent='Erro ao exportar: '+e.message;
+  }
+};
+document.getElementById('btnImportData').onclick=()=>{
+  document.getElementById('fileImportData').click();
+};
+document.getElementById('fileImportData').onchange=async(ev)=>{
+  const file=ev.target.files&&ev.target.files[0];
+  ev.target.value='';
+  if(!file)return;
+  const statusEl=document.getElementById('importDataStatus');
+  if(!window.SH_STATE){statusEl.textContent='Desbloqueie o painel primeiro.';return;}
+  try{
+    const txt=await file.text();
+    const payload=JSON.parse(txt);
+    if(!payload||typeof payload!=='object'||(payload.app&&payload.app!=='radar-b3')){
+      statusEl.textContent='Arquivo não parece um backup do Radar B3.';
+      return;
+    }
+    if(!confirm('Importar este backup vai SOBRESCREVER suas posições, vendas, watchlist e metas atuais neste aparelho. Continuar?'))
+    {
+      statusEl.textContent='Importação cancelada.';
+      return;
+    }
+    if(payload.venda){ applyCfg(payload.venda); await saveCfg(); }
+    if(payload.compra && window.__compra){ window.__compra.onUnlock(payload.compra); await window.__compra.persist(); }
+    statusEl.textContent='Backup importado ✓ — dados atualizados e salvos no cofre.';
+  }catch(e){
+    statusEl.textContent='Erro ao importar: '+e.message+' (confira se é o .json exportado por este mesmo app)';
+  }
 };
 
 </script>
