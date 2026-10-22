@@ -500,7 +500,7 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
     <summary>Configurações</summary>
     <div style="margin-top:10px">
       <label style="font-size:12px;color:var(--dim)">Token brapi</label>
-      <input type="text" id="c_cTok">
+      <input type="password" id="c_cTok" autocomplete="off" placeholder="Cole seu token brapi.dev">
       <div class="hint">O token é salvo no cofre local cifrado do painel. Não compartilhe o HTML com credenciais embutidas. Gere ou gerencie seu token em <a href="https://brapi.dev/dashboard" target="_blank" rel="noopener">brapi.dev/dashboard</a>.</div>
       <label style="font-size:12px;color:var(--dim);display:block;margin-top:12px">Margem de "perto do alvo" (%)</label>
       <input type="text" id="c_cMargin" inputmode="decimal" style="max-width:100px">
@@ -775,6 +775,14 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
     </div>
     <div id="emcLista" style="margin-top:8px"></div>
     <p class="hint">As regras valem depois de clicar em <b>Salvar e atualizar</b>. Cada regra manda no máximo 1 e-mail por dia por ticker.</p>
+    <label style="margin-top:16px">Backup dos dados (posições, vendas, metas, watchlist)</label>
+    <p class="hint" style="margin-top:2px">Exporta um .json com todos os seus dados (Compra + Venda) para levar a outra versão ou aparelho. <b>O arquivo NÃO é cifrado</b> — guarde com cuidado. Ao importar, <b>o token brapi e a chave Finnhub atuais são mantidos</b> (o backup antigo pode ter um token já revogado).</p>
+    <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" id="btnExportData" type="button">⭳ Exportar backup (.json)</button>
+      <button class="btn" id="btnImportData" type="button">⭱ Importar backup (.json)</button>
+      <input type="file" id="fileImportData" accept="application/json,.json" style="display:none">
+    </div>
+    <p class="hint" id="importDataStatus" style="margin-top:8px"></p>
     <label style="margin-top:16px">Trocar PIN (criptografia AES-256, obrigatória)</label>
     <div class="row">
       <div><input type="password" id="cPin" inputmode="numeric" placeholder="novo PIN, 4+ dígitos"></div>
@@ -2439,6 +2447,8 @@ window.__compra={
       score:{weights:tune.w,favorable:tune.fav,neutral:tune.neu},
       security:{secretsExcluded:true,quantitiesExcluded:true}};
   },
+  getState:function(){ return STATE; },
+  persist:function(){ return saveVault(); },
   onLock:function(){ STATE=null; },
   // usados pela integracao compra<->venda: ao comprar, some do radar de compra;
   // ao zerar a posicao (vender tudo), volta pro radar de compra sozinho
@@ -3900,6 +3910,66 @@ function boot(){
 })();
 
 // v2: removidos 2 handlers duplicados do botão evtAdd (geravam alertas falsos de 'preencha a data')
+// ---------------- backup: exportar/importar TODOS os dados (compra + venda) ----------------
+document.getElementById('btnExportData').onclick=()=>{
+  const statusEl=document.getElementById('importDataStatus');
+  try{
+    if(!window.SH_STATE)throw new Error('desbloqueie o painel primeiro');
+    const compraState=(window.__compra&&window.__compra.getState)?window.__compra.getState():null;
+    const vendaState=(typeof collectCfg==='function')?collectCfg():null;
+    const payload={app:'radar-b3',formato:1,exportadoEm:new Date().toISOString(),compra:compraState,venda:vendaState};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download='radar-b3-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    statusEl.textContent='Backup exportado ✓ (arquivo sem cifra — guarde com cuidado)';
+  }catch(e){ statusEl.textContent='Erro ao exportar: '+e.message; }
+};
+document.getElementById('btnImportData').onclick=()=>{ document.getElementById('fileImportData').click(); };
+document.getElementById('fileImportData').onchange=async(ev)=>{
+  const file=ev.target.files&&ev.target.files[0];
+  ev.target.value='';
+  if(!file)return;
+  const statusEl=document.getElementById('importDataStatus');
+  if(!window.SH_STATE){statusEl.textContent='Desbloqueie o painel primeiro.';return;}
+  try{
+    const payload=JSON.parse(await file.text());
+    if(!payload||typeof payload!=='object'||payload.app!=='radar-b3'||(!payload.compra&&!payload.venda)){
+      statusEl.textContent='Arquivo não parece um backup do Radar B3.';return;
+    }
+    const resumo=[];
+    if(payload.venda&&Array.isArray(payload.venda.positions))resumo.push(payload.venda.positions.length+' posições');
+    if(payload.venda&&Array.isArray(payload.venda.sales))resumo.push(payload.venda.sales.length+' vendas');
+    if(payload.compra&&Array.isArray(payload.compra.tickers))resumo.push(payload.compra.tickers.length+' ativos na watchlist');
+    if(!confirm('Backup de '+(payload.exportadoEm||'?').slice(0,10)+' com '+(resumo.join(', ')||'dados')+'.\n\nImportar vai SUBSTITUIR os dados atuais deste aparelho (o token brapi atual é mantido). Continuar?')){
+      statusEl.textContent='Importação cancelada.';return;
+    }
+    // v2: preserva credenciais atuais — o backup pode conter um token antigo (revogado)
+    const curTokV=cTok.value.trim();
+    const curTokC=(window.__compra.getState()||{}).tok||'';
+    const curFh=(document.getElementById('fhTok')||{}).value||'';
+    const tokNovo=curTokC||curTokV;
+    if(payload.venda){
+      const v=Object.assign({},payload.venda);
+      if(tokNovo)v.tok=tokNovo;
+      if(curFh)v.fhTok=curFh;
+      applyCfg(v); await saveCfg();
+    }
+    if(payload.compra&&window.__compra){
+      const c=Object.assign({},payload.compra);
+      if(tokNovo)c.tok=tokNovo;
+      window.__compra.onUnlock(c); await window.__compra.persist();
+    }
+    window.RB&&window.RB.clear();
+    statusEl.textContent='Backup importado ✓ — '+(resumo.join(', ')||'dados')+' salvos no cofre. Token atual mantido.';
+    try{fetchData()}catch(e){}
+  }catch(e){
+    statusEl.textContent='Erro ao importar: '+e.message+' (confira se é o .json exportado pelo Radar)';
+  }
+};
+
 // ============ v3: LONGO PRAZO + COMPARATIVO COM RENDA FIXA ============
 let V3_VIEW='venda', CMP_FILTRO='todas', CMP_SERIES=null, CMP_LOADING=null;
 function hojeLocal(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
