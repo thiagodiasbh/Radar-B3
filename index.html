@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Radar · Compra & Venda — Painel pessoal · v2</title>
+<title>Radar B3 · Painel pessoal · v3</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <!-- v2: Chart.js e SheetJS não bloqueiam mais a abertura — carregam sob demanda (window.RB.loadScript) -->
 <link rel="preconnect" href="https://brapi.dev">
@@ -268,11 +267,43 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
 #tab-venda .report-table th:first-child,#tab-venda .report-table td:first-child{text-align:left;font-family:var(--sans)}
 #tab-venda .report-table tbody tr:last-child td{border-bottom:none}
 #tab-venda .btn.sm{padding:6px 11px;font-size:12px}
+/* v3: Longo prazo + Comparativo */
+#tab-venda button.mini{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:4px 10px;font-size:12px}
+#tab-venda button.mini.on{background:var(--grn-deep);border-color:transparent;color:#fff;font-weight:600}
+#tab-venda .cfg select{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:9px 12px;font-size:14px}
+#tab-venda .cfg summary,#tab-venda details>summary{cursor:pointer}
+#tab-venda .lpbadge{font-size:11px;font-weight:600;color:var(--grn);border:1px solid rgba(25,195,125,.35);border-radius:999px;padding:1px 8px}
+#tab-venda .cmp-filt{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+#tab-venda .cmp-box{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+#tab-venda .cmp-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+#tab-venda .cmp-head b{font-size:16px}
+#tab-venda .cmp-row{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:'nm val' 'bar bar' 'sub sub';gap:3px 10px;align-items:center;padding:6px 0;font-size:13px}
+#tab-venda .cmp-row .nm{grid-area:nm;min-width:0}
+#tab-venda .cmp-row .bar{grid-area:bar}
+#tab-venda .cmp-row .val{grid-area:val}
+@media(min-width:640px){#tab-venda .cmp-row{grid-template-columns:170px minmax(0,1fr) auto;grid-template-areas:'nm bar val' 'sub sub sub'}}
+#tab-venda .cmp-row .bar{height:10px;border-radius:5px;background:var(--card2);overflow:hidden}
+#tab-venda .cmp-row .bar i{display:block;height:100%;border-radius:5px;background:var(--blu)}
+#tab-venda .cmp-row.acao .bar i{background:var(--ylw)}
+#tab-venda .cmp-row .val{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+#tab-venda .cmp-row .sub{grid-area:sub;font-family:var(--mono);font-size:11px;color:var(--mut)}
+#tab-venda .cmp-row .bar{height:8px}
+#tab-venda .cmp-row.win .nm{font-weight:700}
+#tab-venda .cmp-verd{font-size:13px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+@media(max-width:480px){
+  #sh_tabs{gap:0;padding:6px 4px 0}
+  #sh_tabs button{font-size:12.5px;padding:10px 3px}
+  #sh_tabs .lockbtn{padding:10px 6px}
+  #tab-venda .cmp-row{font-size:12.5px}
+  #tab-venda .cmp-row .sub{font-size:10.5px}
+}
 @media print{
   body.printing-report #sh_tabs,
   body.printing-report #sh_lock,
   body.printing-report #tab-compra{display:none!important}
-  body.printing-report #tab-venda>*:not(#reportCard){display:none!important}
+  body.printing-report #tab-venda>*:not(#vw-venda),
+  body.printing-report #vw-venda>*:not(#reportCard){display:none!important}
+  body.printing-report #vw-venda{display:block!important}
   body.printing-report{background:#fff}
   body.printing-report #tab-venda{max-width:none;padding:0;margin:0}
   body.printing-report #reportCard{background:#fff;border:none;box-shadow:none;padding:0}
@@ -313,6 +344,8 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
   <div id="sh_tabs">
     <button id="sh_tab_compra" class="active">🎯 Compra</button>
     <button id="sh_tab_venda">💼 Venda</button>
+    <button id="sh_tab_lp">🌳 Longo prazo</button>
+    <button id="sh_tab_cmp">⚖️ Comparar</button>
     <button class="lockbtn" id="syncOpenBtn" title="Sincronização com Google Drive">☁️</button>
     <button class="lockbtn" onclick="window.shLock&&window.shLock()">🔒</button>
   </div>
@@ -467,7 +500,7 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
     <summary>Configurações</summary>
     <div style="margin-top:10px">
       <label style="font-size:12px;color:var(--dim)">Token brapi</label>
-      <input type="password" id="c_cTok" autocomplete="off" placeholder="Cole seu token brapi.dev">
+      <input type="text" id="c_cTok">
       <div class="hint">O token é salvo no cofre local cifrado do painel. Não compartilhe o HTML com credenciais embutidas. Gere ou gerencie seu token em <a href="https://brapi.dev/dashboard" target="_blank" rel="noopener">brapi.dev/dashboard</a>.</div>
       <label style="font-size:12px;color:var(--dim);display:block;margin-top:12px">Margem de "perto do alvo" (%)</label>
       <input type="text" id="c_cMargin" inputmode="decimal" style="max-width:100px">
@@ -508,6 +541,8 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
 
 <div class="err" id="errBox"></div>
 
+<div id="vw-venda">
+
 <!-- CARTEIRA (posições de venda) -->
 <div class="card">
   <h2>Minhas posições</h2>
@@ -532,6 +567,9 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
         <input type="number" id="pTgtPct" placeholder="ex.: 15" min="-99" step="0.1" style="width:90px"></label>
       <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Stop de proteção (R$) · opcional
         <input type="number" id="pStp" placeholder="piso de perda" min="0" step="0.01" style="width:120px"></label>
+      <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mut,#8b96b0)">Proventos já recebidos (R$) · opcional
+        <input type="number" id="pProv" placeholder="dividendos + JCP" min="0" step="0.01" style="width:130px"></label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txt);height:38px"><input type="checkbox" id="pLp"> 🌳 longo prazo</label>
       <button class="mini" id="pAdd" style="height:38px">Salvar</button>
     </div>
     <p class="hint" style="margin-top:6px">Meta e stop são opcionais e podem ser editados por ação a qualquer momento — a régua é sua, não do painel. Preencha a meta em R$ <b>ou</b> em % de lucro sobre o valor investido nesta posição (ex.: gastou R$1.600 e quer 15% de lucro → informe 15 no campo %) — o outro campo se calcula sozinho. Tudo cifrado no mesmo cofre.</p>
@@ -743,18 +781,57 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
       <div><button class="btn" id="btnPinOn" style="width:100%">Trocar PIN</button></div>
     </div>
     <p class="hint" id="pinStatus"></p>
-    <label style="margin-top:16px">Backup dos dados (posições, vendas, metas, watchlist)</label>
-    <p class="hint" style="margin-top:2px">Exporta um .json com todos os seus dados (Compra + Venda) para levar a outra versão ou aparelho. <b>O arquivo NÃO é cifrado</b> — guarde com cuidado. Ao importar, <b>o token brapi e a chave Finnhub atuais são mantidos</b> (o backup antigo pode ter um token já revogado).</p>
-    <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn" id="btnExportData" type="button">⭳ Exportar backup (.json)</button>
-      <button class="btn" id="btnImportData" type="button">⭱ Importar backup (.json)</button>
-      <input type="file" id="fileImportData" accept="application/json,.json" style="display:none">
-    </div>
-    <p class="hint" id="importDataStatus" style="margin-top:8px"></p>
     <div style="margin-top:14px;display:flex;gap:10px">
       <button class="btn grn" id="btnSave">Salvar e atualizar</button>
     </div>
   </details>
+</div>
+
+</div><!-- /vw-venda -->
+<!-- ===== LONGO PRAZO (v3) ===== -->
+<div id="vw-lp" class="sh-hidden">
+<div class="card">
+  <h2>Ativos de longo prazo</h2>
+  <p class="hint" style="margin:-4px 0 12px">Posições que você marcou como investimento de longo prazo. Elas saem da lista de Venda e ficam aqui, mas continuam no relatório gerencial, no comparativo e no robô. Para marcar, use o botão <b>🌳 longo prazo</b> no card da posição, na aba Venda, ou marque a opção ao cadastrar a compra.</p>
+  <div id="lpSummary"></div>
+  <div id="lpList"><div class="src">carregando…</div></div>
+</div>
+<div class="card">
+  <h2>Agenda dos ativos de longo prazo</h2>
+  <div id="lpAgenda"><div class="hint">Sem eventos para estes ativos.</div></div>
+  <p class="hint">Vem da mesma agenda da aba Venda (incluindo a importada do robô), filtrada pelos ativos de longo prazo.</p>
+</div>
+</div>
+
+<!-- ===== COMPARATIVO (v3) ===== -->
+<div id="vw-cmp" class="sh-hidden">
+<div class="card">
+  <h2>Minhas ações × renda fixa</h2>
+  <p class="hint" style="margin:-4px 0 12px">Quanto o mesmo dinheiro teria rendido se, na data da compra, fosse para o CDI (CDB a 100% do CDI), uma LCA ou o Tesouro Selic. O rendimento conta a partir do dia útil seguinte à compra. Usa quantidade × preço médio e a data de compra de cada posição.</p>
+  <div class="cmp-filt" id="cmpFilt">
+    <button class="mini on" data-cf="todas">Todas</button>
+    <button class="mini" data-cf="venda">Venda</button>
+    <button class="mini" data-cf="lp">🌳 Longo prazo</button>
+  </div>
+  <div id="cmpTotal"></div>
+  <div id="cmpList"><div class="src">carregando…</div></div>
+  <div class="src" id="cmpFonte"></div>
+</div>
+<div class="card cfg">
+  <details>
+    <summary>Premissas do comparativo</summary>
+    <div class="row" style="margin-top:6px">
+      <div><label>LCA rende (% do CDI)</label><input type="number" id="cmpLcaPct" min="50" max="130" step="1" value="90"></div>
+      <div><label>CDB rende (% do CDI)</label><input type="number" id="cmpCdbPct" min="50" max="150" step="1" value="100"></div>
+    </div>
+    <div class="row">
+      <div><label>Custódia B3 no Tesouro (% a.a.)</label><input type="number" id="cmpCust" min="0" max="1" step="0.01" value="0.20"></div>
+      <div><label>Descontar IR da renda fixa</label><select id="cmpIr"><option value="1">sim (tabela regressiva)</option><option value="0">não (comparar bruto)</option></select></div>
+    </div>
+    <button class="btn grn" id="cmpSalvar" style="margin-top:12px">Salvar premissas</button>
+    <p class="hint">IR regressivo sobre o ganho: 22,5% até 180 dias, 20% até 360, 17,5% até 720 e 15% acima disso. LCA é isenta de IR. As ações aparecem pelo valor bruto (preço atual + proventos que você informar), porque o IR delas depende da isenção de R$ 20 mil/mês em vendas. Confira o percentual da LCA que seu banco paga e a custódia vigente do Tesouro.</p>
+  </details>
+</div>
 </div>
 
 <p class="foot">
@@ -1308,11 +1385,20 @@ window.shLock=function(){
   shSetupUI();
   setTimeout(()=>shId('sh_pin').focus(),80);
 };
+// v3: "Longo prazo" e "Comparar" são telas dentro do container da Venda (mesmo estilo, posições e cotações)
+const SH_VIEWS={venda:['Radar de Venda','RV'],lp:['Longo prazo','LP'],cmp:['Comparativo','⚖']};
 function shTab(which){
+  const vv=which!=='compra';
   shId('tab-compra').classList.toggle('sh-hidden',which!=='compra');
-  shId('tab-venda').classList.toggle('sh-hidden',which!=='venda');
-  shId('sh_tab_compra').classList.toggle('active',which==='compra');
-  shId('sh_tab_venda').classList.toggle('active',which==='venda');
+  shId('tab-venda').classList.toggle('sh-hidden',!vv);
+  ['compra','venda','lp','cmp'].forEach(k=>shId('sh_tab_'+k).classList.toggle('active',which===k));
+  if(vv){
+    ['venda','lp','cmp'].forEach(k=>shId('vw-'+k).classList.toggle('sh-hidden',which!==k));
+    const h=document.querySelector('#tab-venda .top h1'), lg=document.querySelector('#tab-venda .top .logo');
+    if(h)h.textContent=SH_VIEWS[which][0]; if(lg)lg.textContent=SH_VIEWS[which][1];
+    try{window.__venda&&window.__venda.onView&&window.__venda.onView(which);}catch(e){console.error('view',e);}
+    window.scrollTo(0,0);
+  }
 }
 // relock unificado
 let shHiddenAt=null;
@@ -1325,6 +1411,8 @@ shId('sh_pin').addEventListener('keydown',e=>{if(e.key==='Enter')shDoUnlock();})
 shId('sh_pin2').addEventListener('keydown',e=>{if(e.key==='Enter')shDoUnlock();});
 shId('sh_tab_compra').onclick=()=>shTab('compra');
 shId('sh_tab_venda').onclick=()=>shTab('venda');
+shId('sh_tab_lp').onclick=()=>shTab('lp');
+shId('sh_tab_cmp').onclick=()=>shTab('cmp');
 shSetupUI();
 setTimeout(()=>shId('sh_pin').focus(),80);
 
@@ -2344,7 +2432,7 @@ window.__compra={
     // v2: formato lido pelo robô (GitHub Actions). Sem tokens e sem quantidades.
     const V=(window.SH_STATE&&window.SH_STATE.venda)||{};
     const pos=(Array.isArray(V.positions)?V.positions:[]).filter(p=>p&&p.tk).map(p=>({
-      ticker:p.tk, pm:+p.pm||null, meta:parseNum(p.tgt), stop:parseNum(p.stp), dataCompra:p.dt||null}));
+      ticker:p.tk, pm:+p.pm||null, meta:parseNum(p.tgt), stop:parseNum(p.stp), dataCompra:p.dt||null, longoPrazo:!!p.lp}));
     return {schema:'radar-config-v2',exportedAt:new Date().toISOString(),coreVersion:RadarCore.CORE_VERSION,
       watchlist:(STATE.tickers||[]).map(t=>({ticker:t,alvo:(STATE.targets||{})[t]??null})),
       posicoes:pos, margemAlvoPct:STATE.margin!=null?+STATE.margin:15,
@@ -2352,8 +2440,6 @@ window.__compra={
       security:{secretsExcluded:true,quantitiesExcluded:true}};
   },
   onLock:function(){ STATE=null; },
-  getState:function(){ return STATE; },
-  persist:function(){ return saveVault(); },
   // usados pela integracao compra<->venda: ao comprar, some do radar de compra;
   // ao zerar a posicao (vender tudo), volta pro radar de compra sozinho
   removerTicker:async function(tk){
@@ -2416,6 +2502,7 @@ let LAST_PX=null, POS_QTY=0;
 let POSITIONS=null, POS_CACHE={}, SALES=null;
 let FOREIGN=[], FQUOTES={}, USDBRL=null; // papéis no exterior: posições, cotações (US$) e dólar atual
 let EMAIL_CFG={ativo:false,destino:'',serviceId:'',templateId:'',publicKey:'',quedaAtiva:false,quedaPct:3,metaAtiva:false,alertasCustom:[]};
+let CMP_CFG={lca:90,cdb:100,cust:0.20,ir:true}; // v3: premissas do comparativo com renda fixa
 let ALERTS_SENT={}; // dedupe: 1 e-mail por dia por (ticker+tipo)
 // Escada semeada na 1ª migração (parecer CIO de 22/07/2026); depois disso, o que vale é o que você editar.
 /* escada de venda removida no Radar de Venda multi-ativo */
@@ -2496,8 +2583,18 @@ async function importAgenda(txt){
   const msg=document.getElementById('impMsg');
   let js;
   try{js=JSON.parse(txt)}catch(e){msg.textContent='Conteúdo inválido — não é um JSON.';return}
-  const evs=js&&js.eventos;
-  if(!Array.isArray(evs)){msg.textContent='Formato não reconhecido.';return}
+  const evs=Array.isArray(js&&js.eventos)?js.eventos:[];
+  const rem=Array.isArray(js&&js.remover)?js.remover:[];
+  if(!evs.length&&!rem.length){msg.textContent='Formato não reconhecido — esperado {"eventos":[…]} e/ou {"remover":[…]}.';return}
+  // v3: "remover" (datas corrigidas pelo robô) também vale na aba Venda
+  let del=0;
+  for(const r of rem){
+    const tk=String(r.ticker||'').toUpperCase().trim(), d=String(r.d||''), t=r.txt===undefined?null:String(r.txt).trim().slice(0,120);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(d))continue;
+    const antes=EVENTS.length;
+    EVENTS=EVENTS.filter(x=>!(x.d===d&&(x.tk||'')===tk&&(t===null||x.txt===t)));
+    del+=antes-EVENTS.length;
+  }
   let add=0,dup=0,skip=0;
   for(const e of evs){
     const tk=String(e.ticker||'').toUpperCase().trim();
@@ -2508,9 +2605,9 @@ async function importAgenda(txt){
     EVENTS.push({d,txt:t,tk});add++;
   }
   await saveCfg();renderAgenda();
-  msg.textContent='Importados '+add+' evento(s)'+(dup?' · '+dup+' já existiam':'')+(skip?' · '+skip+' de outros ativos ignorados':'')+'.';
+  msg.textContent='Importados '+add+' evento(s)'+(del?' · '+del+' removido(s)':'')+(dup?' · '+dup+' já existiam':'')+(skip?' · '+skip+' sem ticker ignorados':'')+'.';
 }
-function collectCfg(){lerFormEmailCfg();return{qty:cQty.value,avg:cAvg.value,tgt:cTgt.value,stp:cStp.value,tok:cTok.value.trim(),pare:pareText.value,pareAt:read('pareAt',''),evts:EVENTS,positions:POSITIONS,positionsSeeded:true,sales:SALES,salesSeeded:true,foreign:FOREIGN,fhTok:(document.getElementById('fhTok')?document.getElementById('fhTok').value.trim():''),emailCfg:EMAIL_CFG,alertsSent:ALERTS_SENT}}
+function collectCfg(){lerFormEmailCfg();return{qty:cQty.value,avg:cAvg.value,tgt:cTgt.value,stp:cStp.value,tok:cTok.value.trim(),pare:pareText.value,pareAt:read('pareAt',''),evts:EVENTS,positions:POSITIONS,positionsSeeded:true,sales:SALES,salesSeeded:true,foreign:FOREIGN,fhTok:(document.getElementById('fhTok')?document.getElementById('fhTok').value.trim():''),emailCfg:EMAIL_CFG,alertsSent:ALERTS_SENT,cmpCfg:CMP_CFG}}
 function applyCfg(o){cQty.value=o.qty;cAvg.value=o.avg;cTgt.value=o.tgt;cStp.value=o.stp;cTok.value=o.tok;pareText.value=o.pare||'';renderParecer(o.pare||'',o.pareAt||'');
   EVENTS=Array.isArray(o.evts)?o.evts:[];
   let precisaSalvar=seedEvents();
@@ -2532,6 +2629,7 @@ function applyCfg(o){cQty.value=o.qty;cAvg.value=o.avg;cTgt.value=o.tgt;cStp.val
   { const fh=document.getElementById('fhTok'); if(fh)fh.value=o.fhTok||''; }
   EMAIL_CFG=Object.assign({ativo:false,destino:'',serviceId:'',templateId:'',publicKey:'',quedaAtiva:false,quedaPct:3,metaAtiva:false,alertasCustom:[]}, o.emailCfg||{});
   ALERTS_SENT=o.alertsSent&&typeof o.alertsSent==='object'?o.alertsSent:{};
+  CMP_CFG=Object.assign({lca:90,cdb:100,cust:0.20,ir:true},o.cmpCfg||{});cmpFillForm();
   preencherFormEmailCfg();
   // semente única: venda parcial de PETR4 em 31/07/2026 (33 @ R$ 43,23). Só baixa a posição se ainda estiver em 300.
   if(!o.salesSeeded){
@@ -2732,6 +2830,7 @@ function posBlock(p,i){
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">'
       +'<b style="font-size:16px">'+p.tk+'</b>'+flags
       +'<span style="margin-left:auto;display:flex;gap:6px">'
+      +'<button class="mini" data-plp="'+i+'" title="mover para a aba Longo prazo">🌳 longo prazo</button>'
       +'<button class="mini" data-pedit="'+i+'" title="editar quantidade, PM, data, meta e stop">✎ editar</button>'
       +'<button class="mini" data-pdel="'+i+'" title="remover esta posição do radar">✕</button></span></div>'
     +dtLinha
@@ -2813,9 +2912,10 @@ function renderSales(){
 function renderSummary(){
   renderReport();
   const box=document.getElementById('posSummary'); if(!box)return;
-  if(!Array.isArray(POSITIONS)||!POSITIONS.length){box.innerHTML='';return}
+  const GIRO=(Array.isArray(POSITIONS)?POSITIONS:[]).filter(p=>!p.lp);
+  if(!GIRO.length){box.innerHTML='';return}
   let inv=0, val=0, temTudo=true;
-  POSITIONS.forEach(p=>{
+  GIRO.forEach(p=>{
     inv += Number(p.pm)*Number(p.qty);
     const c=POS_CACHE[p.tk];
     if(c&&c.px!=null) val += c.px*Number(p.qty); else temTudo=false;
@@ -2826,7 +2926,7 @@ function renderSummary(){
   const cls=v=>v==null?'nt':(v>=0?'up':'dn');
   const sig=v=>(v>=0?'+':'−')+fmt(Math.abs(v));
   box.innerHTML='<div class="grid" style="margin-bottom:12px">'
-    +'<div class="kpi"><div class="l">Investido (em carteira)</div><div class="v">'+fmt(inv)+'</div><div class="s nt">'+POSITIONS.length+' posição(ões)</div></div>'
+    +'<div class="kpi"><div class="l">Investido (em carteira)</div><div class="v">'+fmt(inv)+'</div><div class="s nt">'+GIRO.length+' posição(ões) · sem as de longo prazo</div></div>'
     +'<div class="kpi"><div class="l">Valor atual</div><div class="v">'+(temTudo?fmt(val):'—')+'</div><div class="s nt">'+(temTudo?'cotações do dia':'aguardando cotações')+'</div></div>'
     +'<div class="kpi"><div class="l">Resultado não realizado</div><div class="v '+cls(naoReal)+'">'+(naoReal!=null?sig(naoReal):'—')+'</div><div class="s nt">posições em aberto</div></div>'
     +'<div class="kpi"><div class="l">Resultado consolidado</div><div class="v '+cls(tot)+'">'+(tot!=null?sig(tot):'—')+'</div><div class="s '+cls(real)+'">inclui '+sig(real)+' já realizado</div></div>'
@@ -2970,10 +3070,19 @@ function renderPositions(){
   box.classList.remove('skeleton');
   if(!Array.isArray(POSITIONS)||!POSITIONS.length){
     box.innerHTML='<div class="src">Nenhuma posição no radar. Toque em "+ Adicionar posição comprada" para incluir a primeira.</div>';
+    renderSummary();v3Refresh();
     return;
   }
-  box.innerHTML=POSITIONS.map((p,i)=>posBlock(p,i)).join('');
+  const nLp=POSITIONS.filter(p=>p.lp).length;
+  box.innerHTML=POSITIONS.map((p,i)=>p.lp?'':posBlock(p,i)).join('')
+    +(nLp===POSITIONS.length?'<div class="src">Todas as posições estão em 🌳 Longo prazo.</div>':'')
+    +(nLp?'<div class="hint" style="margin-top:0">'+nLp+' posição(ões) de longo prazo ficam na aba 🌳 Longo prazo.</div>':'');
   renderSummary();
+  box.querySelectorAll('[data-plp]').forEach(b=>b.onclick=async()=>{
+    const p=POSITIONS[+b.dataset.plp];
+    if(!confirm('Mover '+p.tk+' para a aba Longo prazo?'))return;
+    p.lp=true;await saveCfg();renderPositions();
+  });
   box.querySelectorAll('[data-pdel]').forEach(b=>b.onclick=async()=>{
     const i=+b.dataset.pdel;
     if(!confirm('Remover a posição em '+POSITIONS[i].tk+' do radar?'))return;
@@ -2984,14 +3093,18 @@ function renderPositions(){
       await window.__compra.adicionarTicker(tkRem);
     await saveCfg();renderPositions();
   });
-  box.querySelectorAll('[data-pedit]').forEach(b=>b.onclick=()=>{
-    const p=POSITIONS[+b.dataset.pedit];
-    pTk.value=p.tk;pQty.value=p.qty;pPm.value=p.pm;pTgt.value=p.tgt||'';
-    pTgtPct.value=p.tgtPct||(p.tgt&&p.pm?((parseFloat(p.tgt)/p.pm-1)*100).toFixed(2):'');
-    pStp.value=p.stp||'';pDate.value=p.dt||'';
-    const det=pTk.closest('details');if(det)det.open=true;
-    pTk.scrollIntoView({behavior:'smooth',block:'center'});pTk.focus();
-  });
+  box.querySelectorAll('[data-pedit]').forEach(b=>b.onclick=()=>editPosition(+b.dataset.pedit));
+  v3Refresh();
+}
+function editPosition(i){
+  const p=POSITIONS[i];if(!p)return;
+  if(document.getElementById('vw-venda').classList.contains('sh-hidden')&&typeof shTab==='function')shTab('venda');
+  pTk.value=p.tk;pQty.value=p.qty;pPm.value=p.pm;pTgt.value=p.tgt||'';
+  pTgtPct.value=p.tgtPct||(p.tgt&&p.pm?((parseFloat(p.tgt)/p.pm-1)*100).toFixed(2):'');
+  pStp.value=p.stp||'';pDate.value=p.dt||'';
+  pProv.value=p.prov||'';pLp.checked=!!p.lp;
+  const det=pTk.closest('details');if(det)det.open=true;
+  setTimeout(()=>{pTk.scrollIntoView({behavior:'smooth',block:'center'});pTk.focus();},60);
 }
 async function fetchQuotes(){
   const petr=await brapiQuote('PETR4');
@@ -3560,7 +3673,7 @@ btnCopyNews.addEventListener('click',async()=>{
       const metaPct=p.tgtPct!=null&&p.tgtPct!==''?parseFloat(p.tgtPct):(parseFloat(p.tgt)>0&&p.pm>0?(parseFloat(p.tgt)/p.pm-1)*100:null);
       const meta=parseFloat(p.tgt)>0?(', meta de venda R$ '+p.tgt+(metaPct!=null?' ('+(metaPct>=0?'+':'')+metaPct.toFixed(1)+'% de lucro sobre o investido)':'')):'';
       const stop=parseFloat(p.stp)>0?(', stop R$ '+p.stp):'';
-      txt+='• '+p.tk+': '+p.qty+' ações, PM '+fmt(p.pm)+', cotação '+px+meta+stop+'\n';
+      txt+='• '+p.tk+(p.lp?' [LONGO PRAZO]':'')+': '+p.qty+' ações, PM '+fmt(p.pm)+', cotação '+px+meta+stop+'\n';
     });
   }else{txt+='(nenhuma posição cadastrada)\n';}
   txt+='\nManchetes de hoje captadas pelo meu radar:\n';
@@ -3664,12 +3777,14 @@ document.getElementById('pAdd').onclick=async()=>{
     // meta informada só em R$ -> calcula o % equivalente sobre o preço médio
     tgtPctVal=((parseFloat(tgtVal)/pm-1)*100).toFixed(2);
   }
-  const item={tk,qty,pm,tgt:tgtVal,tgtPct:tgtPctVal,stp:pStp.value||'',dt:pDate.value||''};
+  const prov=parseFloat(pProv.value);
+  const item={tk,qty,pm,tgt:tgtVal,tgtPct:tgtPctVal,stp:pStp.value||'',dt:pDate.value||'',prov:prov>0?+prov.toFixed(2):'',lp:!!pLp.checked};
   const ix=POSITIONS.findIndex(p=>p.tk===tk);
   if(ix>=0)POSITIONS[ix]=item;else POSITIONS.push(item);
   if(window.__compra&&window.__compra.removerTicker)await window.__compra.removerTicker(tk);
-  pTk.value='';pQty.value='';pPm.value='';pTgt.value='';pTgtPct.value='';pStp.value='';pDate.value='';
+  pTk.value='';pQty.value='';pPm.value='';pTgt.value='';pTgtPct.value='';pStp.value='';pDate.value='';pProv.value='';pLp.checked=false;
   await saveCfg();renderPositions();updatePositions();
+  if(item.lp)alert(tk+' salvo em 🌳 Longo prazo.');
 };
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&sessionReady()&&Date.now()-lastFetch>REFRESH_MS)fetchData()});
 let RSZ_T=null;
@@ -3785,73 +3900,251 @@ function boot(){
 })();
 
 // v2: removidos 2 handlers duplicados do botão evtAdd (geravam alertas falsos de 'preencha a data')
-// ---------------- backup: exportar/importar TODOS os dados (compra + venda) ----------------
-document.getElementById('btnExportData').onclick=()=>{
-  const statusEl=document.getElementById('importDataStatus');
-  try{
-    if(!window.SH_STATE)throw new Error('desbloqueie o painel primeiro');
-    const compraState=(window.__compra&&window.__compra.getState)?window.__compra.getState():null;
-    const vendaState=(typeof collectCfg==='function')?collectCfg():null;
-    const payload={app:'radar-b3',formato:1,exportadoEm:new Date().toISOString(),compra:compraState,venda:vendaState};
-    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url; a.download='radar-b3-backup-'+new Date().toISOString().slice(0,10)+'.json';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),2000);
-    statusEl.textContent='Backup exportado ✓ (arquivo sem cifra — guarde com cuidado)';
-  }catch(e){ statusEl.textContent='Erro ao exportar: '+e.message; }
-};
-document.getElementById('btnImportData').onclick=()=>{ document.getElementById('fileImportData').click(); };
-document.getElementById('fileImportData').onchange=async(ev)=>{
-  const file=ev.target.files&&ev.target.files[0];
-  ev.target.value='';
-  if(!file)return;
-  const statusEl=document.getElementById('importDataStatus');
-  if(!window.SH_STATE){statusEl.textContent='Desbloqueie o painel primeiro.';return;}
-  try{
-    const payload=JSON.parse(await file.text());
-    if(!payload||typeof payload!=='object'||payload.app!=='radar-b3'||(!payload.compra&&!payload.venda)){
-      statusEl.textContent='Arquivo não parece um backup do Radar B3.';return;
-    }
-    const resumo=[];
-    if(payload.venda&&Array.isArray(payload.venda.positions))resumo.push(payload.venda.positions.length+' posições');
-    if(payload.venda&&Array.isArray(payload.venda.sales))resumo.push(payload.venda.sales.length+' vendas');
-    if(payload.compra&&Array.isArray(payload.compra.tickers))resumo.push(payload.compra.tickers.length+' ativos na watchlist');
-    if(!confirm('Backup de '+(payload.exportadoEm||'?').slice(0,10)+' com '+(resumo.join(', ')||'dados')+'.\n\nImportar vai SUBSTITUIR os dados atuais deste aparelho (o token brapi atual é mantido). Continuar?')){
-      statusEl.textContent='Importação cancelada.';return;
-    }
-    // v2: preserva credenciais atuais — o backup pode conter um token antigo (revogado)
-    const curTokV=cTok.value.trim();
-    const curTokC=(window.__compra.getState()||{}).tok||'';
-    const curFh=(document.getElementById('fhTok')||{}).value||'';
-    const tokNovo=curTokC||curTokV;
-    if(payload.venda){
-      const v=Object.assign({},payload.venda);
-      if(tokNovo)v.tok=tokNovo;
-      if(curFh)v.fhTok=curFh;
-      applyCfg(v); await saveCfg();
-    }
-    if(payload.compra&&window.__compra){
-      const c=Object.assign({},payload.compra);
-      if(tokNovo)c.tok=tokNovo;
-      window.__compra.onUnlock(c); await window.__compra.persist();
-    }
-    window.RB&&window.RB.clear();
-    statusEl.textContent='Backup importado ✓ — '+(resumo.join(', ')||'dados')+' salvos no cofre. Token atual mantido.';
-    try{fetchData()}catch(e){}
-  }catch(e){
-    statusEl.textContent='Erro ao importar: '+e.message+' (confira se é o .json exportado pelo Radar)';
+// ============ v3: LONGO PRAZO + COMPARATIVO COM RENDA FIXA ============
+let V3_VIEW='venda', CMP_FILTRO='todas', CMP_SERIES=null, CMP_LOADING=null;
+function hojeLocal(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function brToIso(s){const p=String(s).split('/');return p[2]+'-'+p[1]+'-'+p[0]}
+function isoToBr(s){const p=String(s).split('-');return p[2]+'/'+p[1]+'/'+p[0]}
+function diasEntre(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000)}
+function sgnFmt(v){return (v>=0?'+':'−')+fmt(Math.abs(v))}
+function v3Refresh(){
+  if(V3_VIEW==='lp')renderLP();
+  else if(V3_VIEW==='cmp')renderCmp();
+}
+function cmpFillForm(){
+  const g=id=>document.getElementById(id);
+  if(!g('cmpLcaPct'))return;
+  g('cmpLcaPct').value=CMP_CFG.lca;g('cmpCdbPct').value=CMP_CFG.cdb;
+  g('cmpCust').value=CMP_CFG.cust;g('cmpIr').value=CMP_CFG.ir?'1':'0';
+}
+// ---------- séries do Banco Central (SGS) desde a compra mais antiga ----------
+// 12 = CDI diário (% a.d.) · 11 = Selic diária (% a.d.) · 433 = IPCA mensal (%)
+async function sgsPeriodo(serie,dIni,dFim){
+  const url='https://api.bcb.gov.br/dados/serie/bcdata.sgs.'+serie+'/dados?formato=json&dataInicial='+isoToBr(dIni)+'&dataFinal='+isoToBr(dFim);
+  const js=await window.RB.json(url,6*3600*1000,20000);
+  if(!Array.isArray(js))throw new Error('SGS '+serie+': resposta inesperada');
+  return js.map(x=>({d:brToIso(x.data),v:parseFloat(x.valor)})).filter(x=>!isNaN(x.v));
+}
+async function carregarSeries(dIni){
+  const hoje=hojeLocal();
+  if(CMP_SERIES&&CMP_SERIES.ini<=dIni&&CMP_SERIES.dia===hoje)return CMP_SERIES;
+  if(CMP_LOADING)return CMP_LOADING;
+  // BCB limita consultas de séries diárias a 10 anos por chamada
+  const lim=new Date();lim.setFullYear(lim.getFullYear()-10);lim.setDate(lim.getDate()+2);
+  const limIso=lim.toISOString().slice(0,10);
+  const ini=dIni<limIso?limIso:dIni;
+  CMP_LOADING=(async()=>{
+    const iniMes=ini.slice(0,8)+'01';
+    const [cdi,selic,ipca]=await Promise.allSettled([sgsPeriodo(12,ini,hoje),sgsPeriodo(11,ini,hoje),sgsPeriodo(433,iniMes,hoje)]);
+    if(cdi.status!=='fulfilled')throw new Error('não consegui baixar o CDI do Banco Central ('+(cdi.reason&&cdi.reason.message||'falha')+')');
+    CMP_SERIES={ini,dia:hoje,cdi:cdi.value,selic:selic.status==='fulfilled'?selic.value:null,ipca:ipca.status==='fulfilled'?ipca.value:null};
+    return CMP_SERIES;
+  })().finally(()=>{CMP_LOADING=null});
+  return CMP_LOADING;
+}
+function aliquotaIR(dias){return dias<=180?0.225:dias<=360?0.20:dias<=720?0.175:0.15}
+// fator acumulado de uma série diária (% a.d.) a partir do dia seguinte à compra, com multiplicador (ex.: 90% do CDI)
+function fatorDiario(serie,dt,mult){
+  let f=1,n=0,ult=null;
+  for(const x of serie){if(x.d>dt){f*=1+mult*x.v/100;n++;ult=x.d}}
+  return {f,n,ult};
+}
+// IPCA mensal pro rata pelos dias corridos de cada mês após a compra
+function fatorIpca(serie,dt,hoje){
+  if(!serie||!serie.length)return null;
+  let f=1,ult=null;
+  for(const x of serie){
+    const y=+x.d.slice(0,4), m=+x.d.slice(5,7);
+    const ini=x.d.slice(0,8)+'01', diasMes=new Date(y,m,0).getDate();
+    const fim=x.d.slice(0,8)+String(diasMes).padStart(2,'0');
+    if(fim<=dt)continue;
+    const a=dt>=ini?dt:null;            // compra dentro deste mês: conta só os dias depois dela
+    const b=hoje<fim?hoje:fim;
+    const dias=a?diasEntre(a,b):diasEntre(ini,b)+1;
+    if(dias<=0)continue;
+    f*=Math.pow(1+x.v/100,Math.min(1,dias/diasMes));ult=x.d;
   }
-};
-
+  return {f,ult};
+}
+function compararPosicao(p,S,hoje){
+  const qty=Number(p.qty)||0, pm=Number(p.pm)||0, V0=qty*pm;
+  const c=POS_CACHE[p.tk]||{};
+  const prov=parseFloat(p.prov)||0;
+  const dias=diasEntre(p.dt,hoje);
+  const ir=CMP_CFG.ir?aliquotaIR(dias):0;
+  const r={tk:p.tk,lp:!!p.lp,dt:p.dt,dias,V0,prov,px:c.px!=null?c.px:null,linhas:[]};
+  r.acao=r.px!=null?qty*r.px+prov:null;
+  const cdi=fatorDiario(S.cdi,p.dt,CMP_CFG.cdb/100);
+  r.nDias=cdi.n;r.ultCdi=cdi.ult;
+  const cdbBruto=V0*cdi.f, cdbLiq=V0+(cdbBruto-V0)*(1-(cdbBruto>V0?ir:0));
+  const lca=V0*fatorDiario(S.cdi,p.dt,CMP_CFG.lca/100).f;
+  let tes=null;
+  if(S.selic){
+    const fs=fatorDiario(S.selic,p.dt,1).f*Math.pow(1-CMP_CFG.cust/100,Math.max(0,dias)/365);
+    const b=V0*fs;tes=V0+(b-V0)*(1-(b>V0?ir:0));
+  }
+  const fi=fatorIpca(S.ipca,p.dt,hoje);
+  r.linhas.push({k:'acao',nm:p.tk+(prov?' + proventos':''),v:r.acao,sub:r.acao!=null?'preço atual'+(prov?' + '+fmt(prov)+' recebidos':''):'sem cotação'});
+  r.linhas.push({k:'cdb',nm:'CDB '+CMP_CFG.cdb+'% do CDI',v:cdbLiq,sub:CMP_CFG.ir?'líquido de IR ('+(ir*100).toFixed(1).replace('.',',')+'%)':'bruto'});
+  r.linhas.push({k:'lca',nm:'LCA '+CMP_CFG.lca+'% do CDI',v:lca,sub:'isenta de IR'});
+  if(tes!=null)r.linhas.push({k:'tes',nm:'Tesouro Selic',v:tes,sub:(CMP_CFG.ir?'líquido de IR':'bruto')+' e custódia'});
+  if(fi)r.linhas.push({k:'ipca',nm:'Inflação (IPCA)',v:V0*fi.f,sub:'só para manter o poder de compra',ref:true});
+  const rf=r.linhas.filter(l=>l.k!=='acao'&&!l.ref&&l.v!=null).sort((a,b)=>b.v-a.v);
+  r.melhorRF=rf[0]||null;
+  return r;
+}
+function cmpLinhasHtml(linhas,V0){
+  const maxAbs=Math.max(1e-9,...linhas.filter(l=>l.v!=null).map(l=>Math.abs(l.v-V0)));
+  const top=linhas.filter(l=>!l.ref&&l.v!=null).sort((a,b)=>b.v-a.v)[0];
+  return linhas.map(l=>{
+    if(l.v==null)return '<div class="cmp-row'+(l.k==='acao'?' acao':'')+'"><span class="nm">'+l.nm+'</span><span class="bar"></span><span class="val nt">—</span><small class="sub">'+l.sub+'</small></div>';
+    const g=l.v-V0, w=Math.abs(g)/maxAbs*100, pctv=V0>0?g/V0*100:0;
+    const cor=g<0?'background:var(--red)':(l.ref?'background:var(--dim)':'');
+    return '<div class="cmp-row'+(l.k==='acao'?' acao':'')+(top&&l===top?' win':'')+'">'
+      +'<span class="nm">'+(top&&l===top?'🏆 ':'')+l.nm+'</span>'
+      +'<span class="bar"><i style="width:'+w.toFixed(1)+'%;'+cor+'"></i></span>'
+      +'<span class="val">'+fmt(l.v)+' <span class="'+(g>=0?'up':'dn')+'">'+(pctv>=0?'+':'')+pctv.toFixed(2).replace('.',',')+'%</span></span>'
+      +'<small class="sub">'+sgnFmt(g)+' · '+l.sub+'</small></div>';
+  }).join('');
+}
+function cmpVeredito(acao,rf,V0,tk){
+  if(acao==null||!rf)return '';
+  const d=acao-rf.v, dp=V0>0?d/V0*100:0;
+  return '<div class="cmp-verd">'+(d>=0
+    ?'<span class="up">✔ '+tk+' está '+fmt(Math.abs(d))+' à frente</span> da melhor renda fixa ('+rf.nm+'), '+dp.toFixed(2).replace('.',',')+' p.p. sobre o valor investido.'
+    :'<span class="dn">✘ '+tk+' está '+fmt(Math.abs(d))+' atrás</span> da melhor renda fixa ('+rf.nm+'), '+Math.abs(dp).toFixed(2).replace('.',',')+' p.p. sobre o valor investido.')+'</div>';
+}
+async function renderCmp(){
+  const list=document.getElementById('cmpList'), tot=document.getElementById('cmpTotal'), fonte=document.getElementById('cmpFonte');
+  if(!list)return;
+  const todas=(Array.isArray(POSITIONS)?POSITIONS:[]).filter(p=>CMP_FILTRO==='todas'||(CMP_FILTRO==='lp'?p.lp:!p.lp));
+  if(!todas.length){tot.innerHTML='';list.innerHTML='<div class="src">Nenhuma posição neste filtro.</div>';fonte.textContent='';return}
+  const hoje=hojeLocal();
+  const comData=todas.filter(p=>/^\d{4}-\d{2}-\d{2}$/.test(p.dt||'')&&p.dt<=hoje);
+  const semData=todas.filter(p=>!comData.includes(p));
+  const semDataHtml=semData.length?'<div class="hint" style="margin-bottom:10px">Sem data de compra (necessária para o comparativo): '
+    +semData.map(p=>'<button class="mini" data-cedit="'+POSITIONS.indexOf(p)+'">'+p.tk+' ✎</button>').join(' ')+'</div>':'';
+  const ligar=()=>list.querySelectorAll('[data-cedit]').forEach(b=>b.onclick=()=>editPosition(+b.dataset.cedit));
+  if(!comData.length){tot.innerHTML='';list.innerHTML=semDataHtml;ligar();fonte.textContent='';return}
+  const dIni=comData.map(p=>p.dt).sort()[0];
+  if(!CMP_SERIES||CMP_SERIES.ini>dIni||CMP_SERIES.dia!==hoje)list.innerHTML='<div class="src">baixando CDI, Selic e IPCA do Banco Central…</div>';
+  let S;
+  try{S=await carregarSeries(dIni)}
+  catch(e){list.innerHTML='<div class="err" style="display:block">'+e.message+'. Tente de novo em alguns minutos.</div>'+semDataHtml;ligar();return}
+  const rs=comData.map(p=>compararPosicao(p,S,hoje)).sort((a,b)=>a.dt<b.dt?-1:1);
+  // consolidado
+  const okAll=rs.every(r=>r.acao!=null);
+  const soma=k=>rs.reduce((s,r)=>{const l=r.linhas.find(x=>x.k===k);return s+(l&&l.v!=null?l.v:0)},0);
+  const V0t=rs.reduce((s,r)=>s+r.V0,0);
+  const temTes=rs.every(r=>r.linhas.some(l=>l.k==='tes')), temIpca=rs.every(r=>r.linhas.some(l=>l.k==='ipca'));
+  const LT=[{k:'acao',nm:'Suas ações',v:okAll?soma('acao'):null,sub:okAll?'preço atual + proventos':'aguardando cotações'},
+    {k:'cdb',nm:'CDB '+CMP_CFG.cdb+'% do CDI',v:soma('cdb'),sub:CMP_CFG.ir?'líquido de IR':'bruto'},
+    {k:'lca',nm:'LCA '+CMP_CFG.lca+'% do CDI',v:soma('lca'),sub:'isenta de IR'}];
+  if(temTes)LT.push({k:'tes',nm:'Tesouro Selic',v:soma('tes'),sub:(CMP_CFG.ir?'líquido de IR':'bruto')+' e custódia'});
+  if(temIpca)LT.push({k:'ipca',nm:'Inflação (IPCA)',v:soma('ipca'),sub:'poder de compra',ref:true});
+  const rfT=LT.filter(l=>l.k!=='acao'&&!l.ref).sort((a,b)=>b.v-a.v)[0];
+  tot.innerHTML=rs.length>1?'<div class="cmp-box" style="border-color:rgba(253,200,47,.35)"><div class="cmp-head"><b>Consolidado</b><span class="s nt">'+rs.length+' posições · '+fmt(V0t)+' investidos</span></div>'
+    +cmpLinhasHtml(LT,V0t)+cmpVeredito(LT[0].v,rfT,V0t,'A carteira')+'</div>':'';
+  list.innerHTML=semDataHtml+rs.map(r=>{
+    const aviso=!r.nDias?'<div class="hint" style="margin:0 0 6px">☀ Comprada em '+fmtD(r.dt)+'. A renda fixa começa a render no próximo dia útil; o comparativo aparece a partir de amanhã.</div>':'';
+    return '<div class="cmp-box"><div class="cmp-head"><b>'+r.tk+'</b>'+(r.lp?'<span class="lpbadge">🌳 longo prazo</span>':'')
+      +'<span class="s nt">comprada em '+fmtD(r.dt)+' · '+r.dias+' dia(s) · '+r.nDias+' dia(s) úteis de CDI · '+fmt(r.V0)+' investidos</span></div>'
+      +aviso+(r.nDias?cmpLinhasHtml(r.linhas,r.V0)+cmpVeredito(r.acao,r.melhorRF,r.V0,r.tk):'')+'</div>';
+  }).join('');
+  ligar();
+  const u=rs.map(r=>r.ultCdi).filter(Boolean).sort().pop();
+  fonte.textContent='Fonte: Banco Central (SGS 12 CDI, 11 Selic, 433 IPCA)'+(u?' · CDI até '+fmtD(u):'')
+    +'. Base: quantidade atual × preço médio, na data da compra. Compras em datas diferentes no mesmo ativo usam a data informada para todo o lote. Simulação, não considera IOF nem spread do título.';
+}
+// ---------- tela Longo prazo ----------
+function renderLP(){
+  const box=document.getElementById('lpList'), sum=document.getElementById('lpSummary'), ag=document.getElementById('lpAgenda');
+  if(!box)return;
+  const L=(Array.isArray(POSITIONS)?POSITIONS:[]).map((p,i)=>({p,i})).filter(x=>x.p.lp);
+  if(!L.length){
+    sum.innerHTML='';ag.innerHTML='<div class="hint">Sem eventos para estes ativos.</div>';
+    box.innerHTML='<div class="src">Nenhum ativo de longo prazo ainda. Na aba 💼 Venda, toque em <b>🌳 longo prazo</b> no card da posição.</div>';
+    return;
+  }
+  const hoje=hojeLocal();
+  const S=CMP_SERIES;
+  let inv=0,val=0,prov=0,tudo=true;
+  box.innerHTML=L.map(({p,i})=>{
+    const c=POS_CACHE[p.tk]||{}, px=c.px!=null?c.px:null, qty=Number(p.qty), pm=Number(p.pm);
+    const v0=qty*pm, pv=parseFloat(p.prov)||0, vAtual=px!=null?qty*px:null;
+    inv+=v0;prov+=pv;if(vAtual!=null)val+=vAtual;else tudo=false;
+    const res=vAtual!=null?vAtual-v0:null, tot=vAtual!=null?vAtual+pv-v0:null;
+    const totPct=tot!=null&&v0>0?tot/v0*100:null;
+    let anual=null;
+    if(totPct!=null&&p.dt){const d=diasEntre(p.dt,hoje);if(d>=30)anual=(Math.pow(1+totPct/100,365/d)-1)*100;}
+    let vsRf='';
+    if(S&&p.dt&&p.dt<=hoje&&S.ini<=p.dt&&vAtual!=null){
+      const r=compararPosicao(p,S,hoje);
+      if(r.melhorRF&&r.nDias){const d=r.acao-r.melhorRF.v;vsRf='<div class="kpi"><div class="l">vs. melhor renda fixa</div><div class="v '+(d>=0?'up':'dn')+'">'+sgnFmt(d)+'</div><div class="s nt">'+r.melhorRF.nm+' renderia '+fmt(r.melhorRF.v)+'</div></div>';}
+    }
+    const cls=v=>v==null?'nt':(v>=0?'up':'dn');
+    return '<div class="posblock" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;flex-wrap:wrap"><b style="font-size:16px">'+p.tk+'</b><span class="lpbadge">🌳 longo prazo</span>'
+      +'<span style="margin-left:auto;display:flex;gap:6px"><button class="mini" data-lpedit="'+i+'">✎ editar</button><button class="mini" data-lpout="'+i+'" title="voltar para a lista da aba Venda">↩ Venda</button></span></div>'
+      +'<div class="s nt" style="margin:0 0 10px">'+(p.dt?'comprada em '+fmtD(p.dt)+' · '+tempoDecorrido(p.dt):'data da compra não informada (necessária para o comparativo)')+'</div>'
+      +'<div class="grid">'
+      +'<div class="kpi"><div class="l">Preço atual</div><div class="v">'+(px!=null?fmt(px):(c.err?'indisp.':'—'))+'</div><div class="s '+cls(c.chg)+'">'+(c.chg!=null?pct(c.chg)+' hoje':'variação do dia')+'</div></div>'
+      +'<div class="kpi"><div class="l">Valor da posição</div><div class="v">'+(vAtual!=null?fmt(vAtual):'—')+'</div><div class="s nt">'+qty+' ações · PM '+fmt(pm)+'</div></div>'
+      +'<div class="kpi"><div class="l">Valorização</div><div class="v '+cls(res)+'">'+(res!=null?sgnFmt(res):'—')+'</div><div class="s '+cls(res)+'">'+(res!=null&&v0>0?pct(res/v0*100)+' sobre o PM':'')+'</div></div>'
+      +'<div class="kpi"><div class="l">Proventos recebidos</div><div class="v">'+fmt(pv)+'</div><div class="s nt">'+(v0>0?(pv/v0*100).toFixed(2).replace('.',',')+'% sobre o investido':'')+'</div></div>'
+      +'<div class="kpi"><div class="l">Retorno total</div><div class="v '+cls(tot)+'">'+(totPct!=null?pct(totPct):'—')+'</div><div class="s nt">'+(anual!=null?'≈ '+pct(anual)+' ao ano':'valorização + proventos')+'</div></div>'
+      +vsRf+'</div></div>';
+  }).join('');
+  const res=tudo?val-inv:null;
+  sum.innerHTML='<div class="grid" style="margin-bottom:12px">'
+    +'<div class="kpi"><div class="l">Investido</div><div class="v">'+fmt(inv)+'</div><div class="s nt">'+L.length+' ativo(s)</div></div>'
+    +'<div class="kpi"><div class="l">Valor atual</div><div class="v">'+(tudo?fmt(val):'—')+'</div><div class="s nt">'+(tudo?'cotações do dia':'aguardando cotações')+'</div></div>'
+    +'<div class="kpi"><div class="l">Valorização + proventos</div><div class="v '+(res==null?'nt':(res+prov>=0?'up':'dn'))+'">'+(res!=null?sgnFmt(res+prov):'—')+'</div><div class="s nt">inclui '+fmt(prov)+' de proventos</div></div>'
+    +'</div>';
+  box.querySelectorAll('[data-lpedit]').forEach(b=>b.onclick=()=>editPosition(+b.dataset.lpedit));
+  box.querySelectorAll('[data-lpout]').forEach(b=>b.onclick=async()=>{
+    const p=POSITIONS[+b.dataset.lpout];
+    if(!confirm('Tirar '+p.tk+' do longo prazo e voltar para a lista da aba Venda?'))return;
+    p.lp=false;await saveCfg();renderPositions();
+  });
+  // agenda filtrada
+  const tks=new Set(L.map(x=>x.p.tk));
+  const evs=(Array.isArray(EVENTS)?EVENTS:[]).filter(e=>tks.has(e.tk)&&e.d>=hoje).sort((a,b)=>a.d<b.d?-1:1).slice(0,20);
+  ag.innerHTML=evs.length?evs.map(e=>'<div class="sig"><span class="dot" style="background:var(--grn)"></span><div><div class="t"><b>'+e.tk+'</b> · '+fmtD(e.d)+'</div><div class="d">'+String(e.txt).replace(/</g,'&lt;')+'</div></div></div>').join('')
+    :'<div class="hint">Nenhum evento futuro para estes ativos.</div>';
+  // carrega as séries em segundo plano para mostrar "vs. melhor renda fixa"
+  const dts=L.map(x=>x.p.dt).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d||'')&&d<=hoje).sort();
+  if(dts.length&&(!S||S.ini>dts[0]||S.dia!==hoje)&&!CMP_LOADING)carregarSeries(dts[0]).then(()=>{if(V3_VIEW==='lp')renderLP()}).catch(()=>{});
+}
+// ---------- eventos das telas novas ----------
+(function(){
+  // correção v3: o botão "Importar" da agenda na aba Venda não tinha ação ligada
+  const ib=document.getElementById('impBtn'), it=document.getElementById('impTxt'), im=document.getElementById('impMsg'), iff=document.getElementById('impFile');
+  if(ib)ib.onclick=()=>{const t=it.value.trim();if(t)importAgenda(t);else im.textContent='Cole o JSON ou escolha o arquivo.'};
+  if(iff)iff.addEventListener('change',e=>{
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    const r=new FileReader();r.onload=()=>{it.value=String(r.result||'');importAgenda(String(r.result||''));iff.value=''};r.readAsText(f);
+  });
+  const f=document.getElementById('cmpFilt');
+  if(f)f.querySelectorAll('[data-cf]').forEach(b=>b.onclick=()=>{
+    CMP_FILTRO=b.dataset.cf;f.querySelectorAll('[data-cf]').forEach(x=>x.classList.toggle('on',x===b));renderCmp();
+  });
+  const sv=document.getElementById('cmpSalvar');
+  if(sv)sv.onclick=async()=>{
+    const n=(id,d,lo,hi)=>{const v=parseFloat(String(document.getElementById(id).value).replace(',','.'));return isNaN(v)?d:Math.min(hi,Math.max(lo,v))};
+    CMP_CFG={lca:n('cmpLcaPct',90,50,130),cdb:n('cmpCdbPct',100,50,150),cust:n('cmpCust',0.2,0,1),ir:document.getElementById('cmpIr').value==='1'};
+    cmpFillForm();await saveCfg();renderCmp();
+    sv.textContent='✓ Salvo';setTimeout(()=>{sv.textContent='Salvar premissas'},2500);
+  };
+})();
 window.__venda={
   onUnlock:function(cfg){
     sessionPin='__unified__';
     if(cfg){applyCfg(cfg);} else {loadCfg(); saveCfg();}
     fetchData(); // v2: fetchData já busca macro e notícias — antes eram buscadas 2x no desbloqueio
   },
-  onLock:function(){ sessionPin=null; }
+  onLock:function(){ sessionPin=null; CMP_SERIES=null; V3_VIEW='venda'; },
+  onView:function(v){ V3_VIEW=v; v3Refresh(); }
 };
 
 </script>
