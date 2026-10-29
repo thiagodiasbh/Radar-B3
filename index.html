@@ -334,12 +334,15 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
       <div id="sh_mig_venda"><input type="password" id="sh_mig_venda_pin" inputmode="numeric" placeholder="PIN do Radar de Venda antigo" autocomplete="off"></div>
     </div>
     <button id="sh_btn">Entrar</button>
+    <button class="ghost" id="sh_drive_btn" style="display:none">☁️ Abrir do Google Drive</button>
+    <div id="sh_drive_note" style="display:none;font-size:12px;color:var(--sh-dim);margin-top:8px;line-height:1.45">Aba privada ou outro aparelho? Digite o PIN acima e clique em <b>Abrir do Google Drive</b>. Ao fechar a janela privada, nada fica neste navegador.</div>
     <button class="ghost" id="sh_wipe_x" style="display:none">.</button>
     <div class="sh-err" id="sh_err"></div>
   </div>
 </div>
 
 
+<button id="sh_cloud" type="button" style="display:none;position:fixed;right:12px;bottom:12px;z-index:9999;background:#1a1f2b;color:#c9d1e0;border:1px solid #2a3142;border-radius:999px;padding:6px 12px;font-size:12px;cursor:default"></button>
 <div id="sh_app">
   <div id="sh_tabs">
     <button id="sh_tab_compra" class="active">🎯 Compra</button>
@@ -1032,6 +1035,10 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
     const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),ms||15000);
     return fetch(url,Object.assign({signal:ctl.signal},opt||{})).finally(()=>clearTimeout(t));
   }
+  // v3.1: o corpo da resposta também tem prazo (antes, um corpo travado segurava a fila para sempre)
+  function bodyT(r,ms){
+    return Promise.race([r.json(),new Promise((_,rej)=>setTimeout(()=>rej(err('NET','resposta lenta demais (abort)')),ms||15000))]);
+  }
   function rangeOrder(){
     try{
       const o=JSON.parse(localStorage.getItem(RANGE_KEY)||'null');
@@ -1062,11 +1069,11 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
           try{r=await fetchT(url,15000)}
           catch(e){net=true;last=e;await new Promise(res=>setTimeout(res,600))}
         }
-        if(!r)continue;
+        if(!r)break;
         if(r.status===401||r.status===403)throw err('AUTH','HTTP '+r.status);
         if(r.status===429){last=err('HTTP','HTTP 429 (limite do plano)');break}
         if(!r.ok){last=err('HTTP','HTTP '+r.status);continue}
-        const js=await r.json();
+        const js=await bodyT(r,15000);
         const q=js.results&&(js.results.find(x=>x.symbol===sym)||js.results[0]);
         const n=q&&q.historicalDataPrice?q.historicalDataPrice.length:0;
         if(n>(minBars||30)){rangeOk(rg);qCache[sym]={q,t:Date.now(),full:true};return q}
@@ -1089,7 +1096,7 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
     const p=enqueue(async()=>{
       const r=await fetchT('https://brapi.dev/api/quote/'+encodeURIComponent(sym)+(tok?'?token='+encodeURIComponent(tok):''),9000);
       if(!r.ok)throw err('HTTP','HTTP '+r.status);
-      const js=await r.json();
+      const js=await bodyT(r,9000);
       const q=js.results&&(js.results.find(x=>x.symbol===sym)||js.results[0]);
       if(!q||q.regularMarketPrice==null)throw err('NOQ','sem cotação');
       if(!(qCache[sym]&&qCache[sym].full))qCache[sym]={q,t:Date.now(),full:false};
@@ -1105,7 +1112,7 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
     const p=(async()=>{
       const r=await fetchT(url,ms||12000,{cache:'no-store'});
       if(!r.ok)throw err('HTTP','HTTP '+r.status);
-      const v=await r.json();jCache[url]={v,t:Date.now()};return v;
+      const v=await bodyT(r,ms||12000);jCache[url]={v,t:Date.now()};return v;
     })().finally(()=>{delete jFlight[url]});
     jFlight[url]=p;return p;
   }
@@ -1171,15 +1178,30 @@ const GDRIVE_SCOPE='https://www.googleapis.com/auth/drive.appdata';
 const GDRIVE_FILENAME='radar-vault.json';
 const GDRIVE_CID_KEY='radar_gclientid', GDRIVE_ON_KEY='radar_gconnected';
 let gTokenClient=null, gAccessToken=null, gTokenExpiry=0, gSyncing=false;
-function gClientId(){ try{return localStorage.getItem(GDRIVE_CID_KEY)||''}catch(e){return ''} }
+// v3.2: Client ID fixo (não é segredo: só vale na origem thiagodiasbh.github.io e para usuários de teste)
+const GDRIVE_CID_DEFAULT='272152822436-pmc83jf33s36mcn5ispcenb08b1rrfcq.apps.googleusercontent.com';
+function gClientId(){ try{return localStorage.getItem(GDRIVE_CID_KEY)||GDRIVE_CID_DEFAULT}catch(e){return GDRIVE_CID_DEFAULT} }
 function gIsConnected(){ try{return localStorage.getItem(GDRIVE_ON_KEY)==='1'}catch(e){return false} }
 function gDriveStatus(msg){ const el=document.getElementById('gDriveStatus'); if(el)el.textContent=msg||''; }
+// v3.2: selo no canto da tela — mostra a última gravação na nuvem e pede reconexão quando o login do Google expira
+function gBadge(txt,reconnect){
+  const b=document.getElementById('sh_cloud'); if(!b)return;
+  if(!txt||!SH_KEY){b.style.display='none';return}
+  b.textContent=txt; b.style.display='block';
+  b.style.cursor=reconnect?'pointer':'default';
+  b.style.borderColor=reconnect?'#f0616d':'#2a3142';
+  b.onclick=reconnect?async()=>{
+    try{gAccessToken=null;await gEnsureToken(true);await gSyncNowReal()}
+    catch(e){gBadge('☁️ não reconectou ('+e.message+') — tocar para tentar',true)}
+  }:null;
+}
 function gInitTokenClient(cid){
   if(typeof google==='undefined'||!google.accounts||!google.accounts.oauth2)return null;
   if(gTokenClient)return gTokenClient;
   gTokenClient=google.accounts.oauth2.initTokenClient({
     client_id:cid||gClientId(), scope:GDRIVE_SCOPE,
-    callback:()=>{} // sobrescrito a cada chamada em gEnsureToken/gConnect
+    callback:()=>{}, // sobrescrito a cada chamada em gEnsureToken/gConnect
+    error_callback:()=>{}
   });
   return gTokenClient;
 }
@@ -1190,14 +1212,17 @@ function gEnsureToken(interactive){
     if(!cid)return reject(new Error('Client ID do Google não configurado.'));
     const tc=gInitTokenClient(cid);
     if(!tc)return reject(new Error('Biblioteca do Google ainda não carregou — tente de novo em instantes.'));
+    const tmo=setTimeout(()=>reject(new Error('login do Google não respondeu')),90000);
+    tc.error_callback=(e)=>{clearTimeout(tmo);reject(new Error((e&&e.type)||'popup fechado ou bloqueado'))};
     tc.callback=(resp)=>{
+      clearTimeout(tmo);
       if(resp.error)return reject(new Error(resp.error));
       gAccessToken=resp.access_token;
       gTokenExpiry=Date.now()+((resp.expires_in||3600)*1000)-60000;
       resolve(gAccessToken);
     };
-    try{ tc.requestAccessToken({prompt:interactive?'consent':''}); }
-    catch(e){ reject(e); }
+    try{ tc.requestAccessToken({prompt:interactive?'select_account':''}); }
+    catch(e){ clearTimeout(tmo); reject(e); }
   });
 }
 async function gFindFile(token){
@@ -1226,10 +1251,13 @@ async function gUpload(token,fileId,content){
 // envia o estado local (já cifrado com o mesmo PIN) para o Drive
 // v2: salvamentos em sequência viram 1 upload só (5 s sem novas alterações) e o id do arquivo fica em memória
 let gSyncTimer=null, gFileId=null, gSyncAgain=false;
+// v3.2: antes do 1º envio da sessão, confere se o Drive não tem versão mais nova (ex.: editada na aba privada)
+let gBaseU=0, gChecked=false, gConflict=false;
 function gSyncNow(){
   if(!gIsConnected())return Promise.resolve();
   clearTimeout(gSyncTimer);
-  gSyncTimer=setTimeout(()=>{gSyncNowReal()},5000);
+  gSyncTimer=setTimeout(()=>{gSyncNowReal()},2000);
+  gBadge('☁️ enviando ao Drive…',false);
   return Promise.resolve();
 }
 async function gSyncNowReal(){
@@ -1238,9 +1266,22 @@ async function gSyncNowReal(){
   if(!SH_KEY||!window.SH_STATE||!gIsConnected())return;
   gSyncing=true; gDriveStatus('Sincronizando…');
   try{
-    const token=await gEnsureToken(false);
-    const raw=localStorage.getItem(SH_VKEY); // mesmo blob {i,d} já salvo localmente
-    if(!raw)throw new Error('nada salvo localmente ainda');
+    if(!(gAccessToken&&Date.now()<gTokenExpiry))throw new Error('login do Google expirado');
+    const token=gAccessToken;
+    const loc=localStorage.getItem(SH_VKEY); // mesmo blob {i,d} já salvo localmente
+    if(!loc)throw new Error('nada salvo localmente ainda');
+    // v3.2: o salt vai junto — sem ele, outro aparelho ou a aba privada não consegue derivar a chave do PIN
+    const lb=JSON.parse(loc);
+    if(!gChecked){
+      const ex=await gFindFile(token);
+      if(ex){
+        gFileId=ex.id;
+        let rb=null; try{rb=JSON.parse(await gDownload(token,ex.id))}catch(e){}
+        if(rb&&(rb.u||0)>gBaseU){gConflict=true;throw new Error('conflito')}
+      }
+      gChecked=true;
+    }
+    const raw=JSON.stringify({v:2,s:localStorage.getItem(SH_SKEY),i:lb.i,d:lb.d,u:(window.SH_STATE&&window.SH_STATE.updatedAt)||0,t:Date.now()});
     if(!gFileId){const ex=await gFindFile(token);gFileId=ex&&ex.id}
     let res;
     try{res=await gUpload(token,gFileId,raw)}
@@ -1249,28 +1290,42 @@ async function gSyncNowReal(){
       const ex=await gFindFile(token);gFileId=ex&&ex.id;res=await gUpload(token,gFileId,raw);
     }
     if(!gFileId&&res&&res.id)gFileId=res.id;
-    gDriveStatus('Sincronizado às '+new Date().toLocaleTimeString('pt-BR'));
-  }catch(e){ gDriveStatus('Erro na sincronização: '+e.message); }
+    const hh=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    gDriveStatus('Sincronizado às '+hh); gBadge('☁️ salvo no Drive às '+hh,false);
+  }catch(e){
+    gDriveStatus('Erro na sincronização: '+e.message);
+    if(gConflict){
+      const b=document.getElementById('sh_cloud');
+      gBadge('☁️ o Drive tem versão mais nova — tocar para trancar e trazer',true);
+      if(b)b.onclick=()=>window.shLock();
+    }else gBadge('☁️ não salvou no Drive — tocar para reconectar',true);
+  }
   gSyncing=false;
   if(gSyncAgain){gSyncAgain=false;gSyncNow()}
 }
 // se a aba for ocultada/fechada com upload pendente, envia na hora
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&gSyncTimer)gSyncNowReal()});
+window.addEventListener('pagehide',()=>{if(gSyncTimer)gSyncNowReal()});
+window.addEventListener('beforeunload',e=>{if(gSyncTimer||gSyncing){e.preventDefault();e.returnValue=''}});
 // no desbloqueio: baixa do Drive, decifra com o MESMO pin, e devolve se for mais novo que o local
-async function gPullIfNewer(pin,localState){
+async function gPullIfNewer(pin,localState,tokP){
   if(!gIsConnected())return null;
   try{
-    const token=await gEnsureToken(false);
+    if(!(gAccessToken&&Date.now()<gTokenExpiry)&&tokP)await tokP;
+    if(!(gAccessToken&&Date.now()<gTokenExpiry))return null; // sem login: o 1º envio confere antes de gravar
+    const token=gAccessToken;
     const meta=await gFindFile(token);
     if(!meta)return null;
     const raw=await gDownload(token,meta.id);
     const blob=JSON.parse(raw);
-    const salt=shUnb64(localStorage.getItem(SH_SKEY));
+    const salt=shUnb64(blob.s||localStorage.getItem(SH_SKEY));
     const key=await shDeriveKey(pin,salt);
     const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:shUnb64(blob.i)},key,shUnb64(blob.d));
     const remoteState=JSON.parse(shDec.decode(pt));
     const remoteT=remoteState.updatedAt||0, localT=(localState&&localState.updatedAt)||0;
-    if(remoteT>localT){ gDriveStatus('Trazido do Drive (mais recente).'); return remoteState; }
+    gChecked=true;
+    if(gConflict||remoteT>localT){
+      gConflict=false; gDriveStatus('Trazido do Drive (mais recente).'); return remoteState; }
     return null;
   }catch(e){ gDriveStatus(''); return null; }
 }
@@ -1320,6 +1375,8 @@ function shSetupUI(){
   shId('sh_pin2').style.display=setup?'block':'none';
   shId('sh_hint').style.display=setup?'block':'none';
   shId('sh_btn').textContent=setup?'Criar PIN e entrar':'Desbloquear';
+  shId('sh_drive_btn').style.display=setup?'block':'none';
+  shId('sh_drive_note').style.display=setup?'block':'none';
   const migBox=shId('sh_mig');
   if(setup&&(oldCompra()||oldVenda())){
     migBox.style.display='block';
@@ -1335,6 +1392,45 @@ function shSetupUI(){
   }
 }
 function shErr(m){shId('sh_err').textContent=m;}
+// v3.2: abre o cofre a partir do Drive, sem nada no navegador (aba privada ou outro aparelho)
+async function shOpenFromDrive(){
+  const pin=shId('sh_pin').value.trim();
+  shErr('');
+  if(!pin)return shErr('Digite o PIN antes de abrir do Drive.');
+  const btn=shId('sh_drive_btn'); const lbl=btn.textContent;
+  btn.disabled=true; btn.textContent='Entrando no Google…';
+  try{
+    let token;
+    try{gAccessToken=null;token=await gEnsureToken(true)}
+    catch(e){return shErr('Login do Google não concluído ('+e.message+'). Se o navegador bloqueou o popup, libere para este site e tente de novo.')}
+    btn.textContent='Baixando do Drive…';
+    const meta=await gFindFile(token);
+    if(!meta)return shErr('Não há cópia do painel neste Google Drive. Conecte o Drive pelo ☁️ no navegador onde estão seus dados.');
+    const blob=JSON.parse(await gDownload(token,meta.id));
+    if(!blob.s)return shErr('A cópia do Drive é do formato antigo (sem o salt). Abra o painel no navegador normal, desbloqueie e espere o selo "☁️ salvo no Drive" — depois tente de novo aqui.');
+    btn.textContent='Decifrando…';
+    const salt=shUnb64(blob.s);
+    const key=await shDeriveKey(pin,salt);
+    let st;
+    try{
+      const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:shUnb64(blob.i)},key,shUnb64(blob.d));
+      st=JSON.parse(shDec.decode(pt));
+    }catch(e){return shErr('PIN incorreto para a cópia do Drive.')}
+    localStorage.setItem(SH_SKEY,blob.s);
+    localStorage.setItem(SH_VKEY,JSON.stringify({i:blob.i,d:blob.d}));
+    try{localStorage.setItem(GDRIVE_ON_KEY,'1')}catch(e){}
+    gFileId=meta.id;
+    SH_KEY=key; window.SH_STATE=st;
+    gBaseU=st.updatedAt||0; gChecked=true; gConflict=false;
+    shEnter();
+    const hh=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    gBadge('☁️ aberto do Drive às '+hh,false);
+  }catch(e){
+    shErr('Falha ao abrir do Drive: '+e.message);
+  }finally{
+    btn.disabled=false; btn.textContent=lbl;
+  }
+}
 async function shDoUnlock(){
   const pin=shId('sh_pin').value.trim();
   shErr('');
@@ -1360,6 +1456,8 @@ async function shDoUnlock(){
     await window.shPersist();
     shEnter();
   }else{
+    // v3.2: pede o login do Google já no clique (popup fora de clique é bloqueado pelo navegador)
+    const tokP=(gIsConnected()&&!(gAccessToken&&Date.now()<gTokenExpiry))?gEnsureToken(false).catch(()=>null):null;
     try{
       const salt=shUnb64(localStorage.getItem(SH_SKEY));
       SH_KEY=await shDeriveKey(pin,salt);
@@ -1368,10 +1466,12 @@ async function shDoUnlock(){
       window.SH_STATE=JSON.parse(shDec.decode(pt));
     }catch(e){ return shErr('PIN incorreto. Tente novamente.'); }
     // se o Drive tiver uma versão mais recente (salva de outro aparelho), usa ela
+    gChecked=false;
     try{
-      const remote=await gPullIfNewer(pin,window.SH_STATE);
+      const remote=await gPullIfNewer(pin,window.SH_STATE,tokP);
       if(remote){ window.SH_STATE=remote; await window.shPersist(); }
     }catch(e){}
+    gBaseU=(window.SH_STATE&&window.SH_STATE.updatedAt)||0;
     shEnter();
   }
 }
@@ -1386,6 +1486,7 @@ function shEnter(){
 window.shLock=function(){
   if(gSyncTimer)gSyncNowReal(); // envia pendência antes de trancar
   SH_KEY=null;window.SH_STATE=null;
+  gBadge('');
   try{window.__compra.onLock();}catch(e){}
   try{window.__venda.onLock();}catch(e){}
   shId('sh_app').style.display='none';
@@ -1415,6 +1516,7 @@ document.addEventListener('visibilitychange',()=>{
   else if(shHiddenAt&&SH_KEY&&Date.now()-shHiddenAt>SH_LOCK_MS){window.shLock();}
 });
 shId('sh_btn').onclick=shDoUnlock;
+shId('sh_drive_btn').onclick=shOpenFromDrive;
 shId('sh_pin').addEventListener('keydown',e=>{if(e.key==='Enter')shDoUnlock();});
 shId('sh_pin2').addEventListener('keydown',e=>{if(e.key==='Enter')shDoUnlock();});
 shId('sh_tab_compra').onclick=()=>shTab('compra');
@@ -1909,32 +2011,51 @@ async function loadFx(){
     box.innerHTML='<div class="kv"><b>—</b><span>câmbio indisponível ('+e.message+')</span></div>';
   }
 }
+let REFRESHING=false;
 async function refreshAll(){
-  if(!STATE)return;
-  // Ibovespa e câmbio sempre são atualizados, mesmo sem tickers na vigília
-  loadFx();
-  await loadIbov();
-  if(!STATE.tickers.length){stampOk();return}
-  $('refreshBtn').disabled=true;$('refreshBtn').textContent='Atualizando…';
-  const fails=[];
-  for(const tk of STATE.tickers){
-    try{
-      const q=await brapiQuote(tk);
-      STATE.cache[tk]=compact(q,STATE.cache[tk]);
-      snapshot(tk,STATE.cache[tk]);
-    }catch(e){fails.push(tk+' ('+e.message+')')}
+  if(!STATE||REFRESHING)return;
+  REFRESHING=true;
+  const btn=$('refreshBtn');
+  btn.disabled=true;btn.textContent='Atualizando…';
+  const fails=[], avisos=[];
+  try{
+    // Ibovespa e câmbio sempre são atualizados, mesmo sem tickers na vigília
+    loadFx();
+    await loadIbov();
+    const tks=STATE.tickers.slice();
+    for(let i=0;i<tks.length;i++){
+      const tk=tks[i];
+      btn.textContent='Atualizando '+(i+1)+'/'+tks.length+' · '+tk+'…';
+      try{
+        const q=await brapiQuote(tk);
+        STATE.cache[tk]=compact(q,STATE.cache[tk]);
+        snapshot(tk,STATE.cache[tk]);
+      }catch(e){fails.push(tk+' ('+e.message+')')}
+    }
+    try{notifyTargets()}catch(e){console.error('notifyTargets',e)}
+    try{await saveVault()}
+    catch(e){
+      console.error('saveVault',e);
+      avisos.push(/quota/i.test(e.name+' '+e.message)
+        ?'<b>Não consegui salvar no navegador:</b> armazenamento local cheio. As cotações aparecem, mas não ficam guardadas. Exporte um backup (Venda → Configurações) e me avise.'
+        :'<b>Não consegui salvar no navegador:</b> '+e.message);
+    }
+    try{render()}catch(e){console.error('render',e);avisos.push('<b>Erro ao montar a lista:</b> '+e.message)}
+    if(fails.length){
+      const netBlocked=fails.some(f=>f.includes(NET_BLOCK_MSG));
+      avisos.unshift('<b>Falha ao atualizar:</b> '+fails.join(', ')+'.<br>'+(netBlocked
+        ?'<b>O ambiente atual bloqueia chamadas externas.</b> Baixe o arquivo e abra direto no navegador (Chrome/Safari/Edge) para as cotações carregarem.'
+        :'Pode ser limite diário do plano grátis ou token inválido — confira nas Configurações. Os últimos dados salvos continuam exibidos.'));
+      $('stamp').textContent='atualização parcial — alguns dados podem estar antigos';
+    }else if(!avisos.length)stampOk();
+  }catch(e){
+    console.error('refreshAll',e);
+    avisos.push('<b>Erro inesperado na atualização:</b> '+e.message);
+  }finally{
+    if(avisos.length)showErr(avisos.join('<br><br>'));else hideErr();
+    btn.disabled=false;btn.textContent='Atualizar cotações';
+    REFRESHING=false;
   }
-  notifyTargets();
-  await saveVault();
-  render();
-  if(fails.length){
-    const netBlocked=fails.some(f=>f.includes(NET_BLOCK_MSG));
-    showErr('<b>Falha ao atualizar:</b> '+fails.join(', ')+'.<br>'+(netBlocked
-      ?'<b>O ambiente atual bloqueia chamadas externas.</b> Baixe o arquivo e abra direto no navegador (Chrome/Safari/Edge) para as cotações carregarem.'
-      :'Pode ser limite diário do plano grátis ou token inválido — confira nas Configurações. Os últimos dados salvos continuam exibidos.'));
-    $('stamp').textContent='atualização parcial — alguns dados podem estar antigos';
-  }else{hideErr();stampOk()}
-  $('refreshBtn').disabled=false;$('refreshBtn').textContent='Atualizar cotações';
 }
 $('refreshBtn').onclick=refreshAll;
 $('ordAlvo').onclick=async()=>{ if(!STATE)return; STATE.ordem='alvo'; await saveVault(); render(); };
