@@ -1139,7 +1139,9 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
 // ============ SHELL: unlock único, cofre unificado, migração, abas ============
 const SH_VKEY='u_vault', SH_SKEY='u_salt', SH_LOCK_MS=10*60*1000;
 const shEnc=new TextEncoder(), shDec=new TextDecoder();
-const shB64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+// v3.2.1: conversão em blocos — o spread (...bytes) estourava a pilha quando o cofre passou de ~100 KB
+function u8ToB64(b){const u=new Uint8Array(b);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)}
+const shB64=u8ToB64;
 const shUnb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 let SH_KEY=null;
 window.SH_STATE=null;
@@ -1541,7 +1543,7 @@ const LOCK_MS=10*60*1000;
 
 // ---------------- crypto (AES-256-GCM + PBKDF2 200k) ----------------
 const enc=new TextEncoder(), dec=new TextDecoder();
-const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+const b64=b=>u8ToB64(b);
 const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 async function deriveKey(pin,salt){
   const km=await crypto.subtle.importKey('raw',enc.encode(pin),'PBKDF2',false,['deriveKey']);
@@ -2605,7 +2607,7 @@ function wipeKeys(){['qty','avg','tgt','stp','tok'].forEach(k=>{try{localStorage
 const ENC_KEY='radar_enc';
 let sessionPin=null;
 const cryptoOK=!!(window.crypto&&crypto.subtle);
-function b64(buf){return btoa(String.fromCharCode.apply(null,new Uint8Array(buf)))}
+function b64(buf){return u8ToB64(buf)}
 function unb64(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0))}
 async function deriveKey(pin,salt){
   const mat=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveKey']);
