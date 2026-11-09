@@ -575,6 +575,7 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txt);height:38px"><input type="checkbox" id="pLp"> 🌳 longo prazo</label>
       <button class="mini" id="pAdd" style="height:38px">Salvar</button>
     </div>
+    <div id="pTkMsg" style="display:none;margin-top:8px;font-size:13px;line-height:1.7"></div>
     <p class="hint" style="margin-top:6px">Meta e stop são opcionais e podem ser editados por ação a qualquer momento — a régua é sua, não do painel. Preencha a meta em R$ <b>ou</b> em % de lucro sobre o valor investido nesta posição (ex.: gastou R$1.600 e quer 15% de lucro → informe 15 no campo %) — o outro campo se calcula sozinho. Tudo cifrado no mesmo cofre.</p>
   </details>
 </div>
@@ -1095,10 +1096,12 @@ html,body{margin:0;padding:0;background:var(--sh-bg);color:var(--sh-txt);font-fa
     if(qFlight[k])return qFlight[k];
     const p=enqueue(async()=>{
       const r=await fetchT('https://brapi.dev/api/quote/'+encodeURIComponent(sym)+(tok?'?token='+encodeURIComponent(tok):''),9000);
+      if(r.status===404)throw err('NOTFOUND','código não encontrado');
       if(!r.ok)throw err('HTTP','HTTP '+r.status);
       const js=await bodyT(r,9000);
       const q=js.results&&(js.results.find(x=>x.symbol===sym)||js.results[0]);
-      if(!q||q.regularMarketPrice==null)throw err('NOQ','sem cotação');
+      if(!q)throw err('NOTFOUND','código não encontrado');
+      if(q.regularMarketPrice==null)throw err('NOQ','sem cotação');
       if(!(qCache[sym]&&qCache[sym].full))qCache[sym]={q,t:Date.now(),full:false};
       return q;
     }).finally(()=>{delete qFlight[k]});
@@ -2925,11 +2928,122 @@ async function posQuote(sym){
   if(!q||q.regularMarketPrice==null)throw new Error('sem cotação');
   return{px:q.regularMarketPrice,chg:q.regularMarketChangePercent!=null?q.regularMarketChangePercent:null};
 }
+// v3.2.2: o cadastro aceitava qualquer código de 4 a 8 caracteres ("PETR", sem o número) e a posição
+// ficava sem cotação para sempre. Agora o código é conferido ao salvar e o card oferece o conserto.
+function normTk(v){
+  let t=String(v||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(/^[A-Z0-9]{4}\d{1,2}F$/.test(t))t=t.slice(0,-1); // fracionário (PETR4F) tem a cotação do papel inteiro
+  return t;
+}
+function tkFormatoB3(t){return /^[A-Z0-9]{4}\d{1,2}$/.test(t)&&/[A-Z]/.test(t)}
+function tkRaiz(t){return String(t||'').replace(/\d{1,2}F?$/,'').slice(0,4)}
+function tkSugPadrao(raiz){return raiz.length===4?[3,4,11].map(n=>raiz+n):[]}
+const TK_SUG={},TK_SUG_RUN={};
+async function tkBuscarSug(raiz){
+  if(TK_SUG[raiz])return TK_SUG[raiz];
+  let l=[],respondeu=false;
+  try{
+    const tok=cTok.value.trim()||DEFAULT_TOKEN;
+    const r=await fetchTimeout('https://brapi.dev/api/available?search='+encodeURIComponent(raiz)+(tok?'&token='+encodeURIComponent(tok):''),8000);
+    if(r.ok){
+      const j=await Promise.race([r.json(),new Promise((_,rej)=>setTimeout(()=>rej(new Error('lento')),8000))]);
+      l=(j.stocks||[]).filter(s=>typeof s==='string'&&s.startsWith(raiz)&&tkFormatoB3(s));
+      respondeu=true;
+    }
+  }catch(_){}
+  if(!respondeu)return tkSugPadrao(raiz); // busca fora do ar: não guarda, tenta de novo na próxima vez
+  const num=s=>parseInt(s.slice(4),10);
+  return TK_SUG[raiz]=[...new Set(l)].sort((a,b)=>num(a)-num(b)||(a<b?-1:1)).slice(0,6);
+}
+function tkMsg(html){
+  const b=document.getElementById('pTkMsg');if(!b)return;
+  b.innerHTML=html||'';b.style.display=html?'block':'none';
+}
+async function tkRecusar(tk){
+  const sug=(await tkBuscarSug(tkRaiz(tk))).filter(s=>s!==tk);
+  tkMsg('⚠ <b>'+tk+'</b> não é um código negociado na B3'+(tkFormatoB3(tk)?'':' (falta o número final)')+', por isso nada foi salvo.'
+    +(sug.length?' Qual você comprou? '+sug.map(s=>'<button class="mini" type="button" data-tksug="'+s+'">'+s+'</button>').join(' '):' Confira o código na nota de corretagem.'));
+  pTk.focus();
+}
+function tkMoverRegistros(velho,novo){
+  (SALES||[]).forEach(s=>{if(s.tk===velho)s.tk=novo});
+  (Array.isArray(EVENTS)?EVENTS:[]).forEach(e=>{if(e.tk===velho)e.tk=novo});
+  delete POS_CACHE[velho];
+}
+function tkAvisoHtml(p,i){
+  const c=POS_CACHE[p.tk]||{};
+  if(c.px!=null)return '';
+  const foraPadrao=!tkFormatoB3(p.tk);
+  if(!foraPadrao&&!c.notFound)return '';
+  const raiz=tkRaiz(p.tk);
+  let sug=TK_SUG[raiz];
+  if(!sug){
+    sug=tkSugPadrao(raiz);
+    if(!TK_SUG_RUN[raiz]){
+      TK_SUG_RUN[raiz]=1;
+      tkBuscarSug(raiz).then(()=>{if(TK_SUG[raiz])renderPositions()}).catch(()=>{});
+    }
+  }
+  sug=sug.filter(s=>s!==p.tk);
+  return '<div style="border:1px solid var(--ylw);border-radius:8px;padding:8px 10px;margin:0 0 10px;font-size:13px;color:var(--txt)">'
+    +'⚠ <b>'+p.tk+'</b> '+(foraPadrao?'não é um código da B3 (falta o número final)':'não foi encontrado na B3')+', por isso não há cotação.'
+    +(sug.length?' Qual você comprou? '+sug.map(s=>'<button class="mini" type="button" data-tkfix="'+i+'" data-tkto="'+s+'">'+s+'</button>').join(' '):' Corrija em ✎ editar.')
+    +'</div>';
+}
+let TK_TROCANDO=false;
+async function tkTrocar(p,novo){
+  if(TK_TROCANDO||!POSITIONS.includes(p))return;
+  TK_TROCANDO=true;
+  try{
+    const velho=p.tk;
+    let cot=null;
+    try{cot=await posQuote(novo)}
+    catch(e){
+      if(e.code==='NOTFOUND'){alert(novo+' também não foi encontrado na B3. Escolha outro código.');return}
+    }
+    const precos=(cot?'Cotação de '+novo+' agora: '+fmt(cot.px)+'. ':'Não consegui confirmar a cotação de '+novo+' agora. ')+'Seu preço médio: '+fmt(Number(p.pm))+'.';
+    const outra=POSITIONS.find(x=>x!==p&&x.tk===novo);
+    if(outra){
+      const q1=Number(outra.qty),q2=Number(p.qty);
+      const pm=(q1*Number(outra.pm)+q2*Number(p.pm))/(q1+q2);
+      if(!confirm('Você já tem posição em '+novo+' ('+q1+' ações).\n\nJuntar com as '+q2+' de '+velho+'? Fica '+(q1+q2)+' ações com preço médio '+fmt(pm)+', mantendo a meta e o stop de '+novo+'.\n\n'+precos))return;
+      outra.qty=q1+q2;outra.pm=+pm.toFixed(4);
+      if(!outra.tgt&&p.tgt){outra.tgt=p.tgt;outra.tgtPct=p.tgtPct}
+      if(!outra.stp&&p.stp)outra.stp=p.stp;
+      if(p.dt&&(!outra.dt||p.dt>outra.dt))outra.dt=p.dt; // a mais recente: é a que importa para o alarme de day trade
+      const prov=(parseFloat(outra.prov)||0)+(parseFloat(p.prov)||0);
+      outra.prov=prov>0?+prov.toFixed(2):'';
+      outra.lp=!!(outra.lp||p.lp);
+      POSITIONS.splice(POSITIONS.indexOf(p),1);
+    }else{
+      if(!confirm('Trocar '+velho+' por '+novo+'?\n\n'+precos))return;
+      p.tk=novo;
+    }
+    tkMoverRegistros(velho,novo);
+    if(cot)POS_CACHE[novo]=cot;
+    if(window.__compra&&window.__compra.removerTicker)await window.__compra.removerTicker(novo);
+    await saveCfg();renderPositions();renderSales();updatePositions();
+  }finally{TK_TROCANDO=false}
+}
+document.addEventListener('click',e=>{
+  const alvo=e.target&&e.target.closest?e.target:null;if(!alvo)return;
+  const fix=alvo.closest('[data-tkfix]');
+  if(fix){tkTrocar(POSITIONS[+fix.dataset.tkfix],fix.dataset.tkto);return}
+  const sug=alvo.closest('[data-tksug]');
+  if(sug){pTk.value=sug.dataset.tksug;tkMsg('');document.getElementById('pAdd').click()}
+});
 async function updatePositions(){
   if(!Array.isArray(POSITIONS)||!POSITIONS.length)return;
-  for(const p of POSITIONS){
-    try{POS_CACHE[p.tk]=await posQuote(p.tk)}
-    catch(e){POS_CACHE[p.tk]=POS_CACHE[p.tk]||{err:true}}
+  let novasTentativas=3; // falha passageira: repete pouco, para não segurar a fila da brapi se a rede caiu
+  for(const p of POSITIONS.slice()){
+    for(;;){
+      try{POS_CACHE[p.tk]=await posQuote(p.tk);break}
+      catch(e){
+        if(e.code==='NOTFOUND'){POS_CACHE[p.tk]={err:true,notFound:true};break}
+        if(novasTentativas-->0){await new Promise(r=>setTimeout(r,1500));continue}
+        POS_CACHE[p.tk]=POS_CACHE[p.tk]||{err:true};break;
+      }
+    }
   }
   renderPositions();
 }
@@ -2966,7 +3080,7 @@ function posBlock(p,i){
       +'<button class="mini" data-plp="'+i+'" title="mover para a aba Longo prazo">🌳 longo prazo</button>'
       +'<button class="mini" data-pedit="'+i+'" title="editar quantidade, PM, data, meta e stop">✎ editar</button>'
       +'<button class="mini" data-pdel="'+i+'" title="remover esta posição do radar">✕</button></span></div>'
-    +dtLinha
+    +dtLinha+tkAvisoHtml(p,i)
     +'<div class="grid">'
       +'<div class="kpi"><div class="l">Preço atual</div><div class="v">'+(px!=null?fmt(px):(c.err?'indisp.':'—'))+'</div><div class="s '+dayCls+'">'+(day!=null?pct(day)+' hoje':'variação do dia')+'</div></div>'
       +'<div class="kpi"><div class="l">Valor da posição</div><div class="v">'+(val!=null?fmt(val):'—')+'</div><div class="s nt">'+p.qty+' ações · PM '+fmt(p.pm)+'</div></div>'
@@ -3229,8 +3343,10 @@ function renderPositions(){
   box.querySelectorAll('[data-pedit]').forEach(b=>b.onclick=()=>editPosition(+b.dataset.pedit));
   v3Refresh();
 }
+let P_EDIT=null;
 function editPosition(i){
   const p=POSITIONS[i];if(!p)return;
+  P_EDIT=p;tkMsg('');
   if(document.getElementById('vw-venda').classList.contains('sh-hidden')&&typeof shTab==='function')shTab('venda');
   pTk.value=p.tk;pQty.value=p.qty;pPm.value=p.pm;pTgt.value=p.tgt||'';
   pTgtPct.value=p.tgtPct||(p.tgt&&p.pm?((parseFloat(p.tgt)/p.pm-1)*100).toFixed(2):'');
@@ -3831,6 +3947,7 @@ btnPareSave.addEventListener('click',async()=>{
 btnSave.addEventListener('click',async()=>{await saveCfg();fetchData();cfgBox.open=false});
 let ACT_T=null,ACT_LAST='';
 pTk.addEventListener('input',()=>{
+  tkMsg('');
   const q=pTk.value.trim().toUpperCase();
   if(q.length<2||q===ACT_LAST)return;
   clearTimeout(ACT_T);
@@ -3898,10 +4015,39 @@ document.getElementById('sAdd').onclick=async()=>{
   });
 })();
 document.getElementById('pAdd').onclick=async()=>{
-  const tk=pTk.value.trim().toUpperCase();
+  const btnAdd=document.getElementById('pAdd');
+  if(btnAdd.disabled)return;
+  const tk=normTk(pTk.value);
   const qty=parseInt(pQty.value,10)||0, pm=parseFloat(pPm.value)||0;
-  if(!/^[A-Z0-9]{4,8}$/.test(tk)){alert('Ticker inválido — ex.: SANB11, VALE3.');return}
+  if(!tk){alert('Informe o ticker — ex.: SANB11, VALE3.');return}
   if(qty<=0||pm<=0){alert('Quantidade e preço médio precisam ser maiores que zero.');return}
+  const editando=P_EDIT&&POSITIONS.includes(P_EDIT)?P_EDIT:null;
+  let cot=null,semValidar=false;
+  if(!(editando&&editando.tk===tk)){ // editar meta/stop de uma posição existente não depende da brapi
+    tkMsg('');
+    const rotulo=btnAdd.textContent;
+    btnAdd.disabled=true;btnAdd.textContent='Validando…';
+    try{
+      if(!tkFormatoB3(tk)){await tkRecusar(tk);return}
+      try{cot=await posQuote(tk)}
+      catch(e){
+        if(e.code==='NOTFOUND'){await tkRecusar(tk);return}
+        semValidar=true; // sem rede ou limite do plano: não perde a compra
+      }
+    }finally{btnAdd.disabled=false;btnAdd.textContent=rotulo}
+  }
+  if(editando&&editando.tk!==tk){
+    if(POSITIONS.some(x=>x!==editando&&x.tk===tk)){
+      alert('Já existe uma posição em '+tk+'. Para juntar as duas, use o botão '+tk+' no aviso do card de '+editando.tk+' ou ajuste a quantidade e o preço médio de '+tk+'.');
+      return;
+    }
+    if(confirm('Trocar o código da posição '+editando.tk+' para '+tk+'?\n\nOK = troca o código, levando vendas e agenda.\nCancelar = cadastra '+tk+' como posição nova.')){
+      tkMoverRegistros(editando.tk,tk);
+      editando.tk=tk;
+    }
+  }
+  P_EDIT=null;
+  if(cot)POS_CACHE[tk]=cot;
   let tgtVal=pTgt.value||'', tgtPctVal=pTgtPct.value||'';
   if(tgtPctVal!==''&&tgtVal===''){
     // meta informada só em % -> calcula o R$ a partir do preço médio
@@ -3913,10 +4059,24 @@ document.getElementById('pAdd').onclick=async()=>{
   const prov=parseFloat(pProv.value);
   const item={tk,qty,pm,tgt:tgtVal,tgtPct:tgtPctVal,stp:pStp.value||'',dt:pDate.value||'',prov:prov>0?+prov.toFixed(2):'',lp:!!pLp.checked};
   const ix=POSITIONS.findIndex(p=>p.tk===tk);
+  if(ix>=0&&!editando){
+    // antes a compra nova apagava a posição anterior do mesmo papel sem avisar
+    const ant=POSITIONS[ix], q1=Number(ant.qty), somaQ=q1+qty, somaPm=(q1*Number(ant.pm)+qty*pm)/somaQ;
+    if(!confirm('Você já tem '+q1+' ações de '+tk+' (preço médio '+fmt(Number(ant.pm))+').\n\nSomar esta compra? Fica '+somaQ+' ações com preço médio '+fmt(somaPm)+'.\n\nCancelar = não salva nada. Para corrigir os números da posição, use ✎ editar no card.'))return;
+    item.qty=somaQ;item.pm=+somaPm.toFixed(4);
+    if(!item.tgt)item.tgt=ant.tgt||'';
+    item.tgtPct='';
+    if(!item.stp)item.stp=ant.stp||'';
+    if(!item.dt||(ant.dt&&ant.dt>item.dt))item.dt=ant.dt||item.dt;
+    const somaProv=(parseFloat(ant.prov)||0)+(parseFloat(item.prov)||0);
+    item.prov=somaProv>0?+somaProv.toFixed(2):'';
+    item.lp=!!(ant.lp||item.lp);
+  }
   if(ix>=0)POSITIONS[ix]=item;else POSITIONS.push(item);
   if(window.__compra&&window.__compra.removerTicker)await window.__compra.removerTicker(tk);
   pTk.value='';pQty.value='';pPm.value='';pTgt.value='';pTgtPct.value='';pStp.value='';pDate.value='';pProv.value='';pLp.checked=false;
   await saveCfg();renderPositions();updatePositions();
+  if(semValidar)tkMsg('Salvo. Não consegui confirmar <b>'+tk+'</b> na brapi agora (rede ou limite do plano); se o código estiver errado, o card vai avisar na próxima atualização.');
   if(item.lp)alert(tk+' salvo em 🌳 Longo prazo.');
 };
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&sessionReady()&&Date.now()-lastFetch>REFRESH_MS)fetchData()});
@@ -4280,6 +4440,7 @@ function renderLP(){
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;flex-wrap:wrap"><b style="font-size:16px">'+p.tk+'</b><span class="lpbadge">🌳 longo prazo</span>'
       +'<span style="margin-left:auto;display:flex;gap:6px"><button class="mini" data-lpedit="'+i+'">✎ editar</button><button class="mini" data-lpout="'+i+'" title="voltar para a lista da aba Venda">↩ Venda</button></span></div>'
       +'<div class="s nt" style="margin:0 0 10px">'+(p.dt?'comprada em '+fmtD(p.dt)+' · '+tempoDecorrido(p.dt):'data da compra não informada (necessária para o comparativo)')+'</div>'
+      +tkAvisoHtml(p,i)
       +'<div class="grid">'
       +'<div class="kpi"><div class="l">Preço atual</div><div class="v">'+(px!=null?fmt(px):(c.err?'indisp.':'—'))+'</div><div class="s '+cls(c.chg)+'">'+(c.chg!=null?pct(c.chg)+' hoje':'variação do dia')+'</div></div>'
       +'<div class="kpi"><div class="l">Valor da posição</div><div class="v">'+(vAtual!=null?fmt(vAtual):'—')+'</div><div class="s nt">'+qty+' ações · PM '+fmt(pm)+'</div></div>'
