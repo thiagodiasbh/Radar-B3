@@ -419,6 +419,63 @@ input,select,textarea,button{font-family:inherit}
   body.printing-report #reportCard *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body.printing-report #reportCard .export-btns{display:none!important}
 }
+
+/* ===== v4.1 · destaque dos cartões (Compra, Venda, Longo prazo, Comparativo) ===== */
+:root{--b-bg:#e9edf4}
+html,body{background:var(--b-bg)}
+.card{box-shadow:0 2px 8px rgba(11,31,92,.06)}
+/* Compra: faixa lateral pelo termômetro + selos sólidos */
+#tab-compra .asset{border-left:6px solid var(--b-line2);box-shadow:0 2px 8px rgba(11,31,92,.07);margin-bottom:12px;transition:box-shadow .15s,transform .15s}
+#tab-compra .asset:hover{box-shadow:0 6px 18px rgba(11,31,92,.13)}
+#tab-compra .asset.sc-fav{border-left-color:var(--b-grn)}
+#tab-compra .asset.sc-neu{border-left-color:#e0a800}
+#tab-compra .asset.sc-des{border-left-color:var(--b-red)}
+#tab-compra .asset.near{background:#f3f8ff;border-color:#9fc2f3;border-left-color:var(--b-blue)}
+#tab-compra .asset.near .asset-head:hover{background:#eaf2ff}
+#tab-compra .asset.hit{background:#effaf4;border:1.5px solid var(--b-grn);border-left:6px solid var(--b-grn);box-shadow:0 4px 14px rgba(11,138,82,.18)}
+#tab-compra .asset.hit .asset-head:hover{background:#e4f6ec}
+#tab-compra .asset-head .tk{font-size:17px;font-weight:900}
+#tab-compra .asset-head .px{font-size:16px}
+#tab-compra .asset-head .chg{padding:2px 7px;border-radius:4px}
+#tab-compra .asset-head .chg.up{background:#e6f6ee}
+#tab-compra .asset-head .chg.down{background:#fdecec}
+#tab-compra .badge{font-size:11px;padding:5px 11px}
+#tab-compra .b-fav{background:var(--b-grn);color:#fff;border-color:var(--b-grn)}
+#tab-compra .b-neu{background:var(--b-yel);color:var(--b-navy);border-color:var(--b-yel2)}
+#tab-compra .b-des{background:var(--b-red);color:#fff;border-color:var(--b-red)}
+#tab-compra .b-hit{background:var(--b-grn);color:#fff;border-color:var(--b-grn)}
+#tab-compra .b-near{background:var(--b-blue);color:#fff;border-color:var(--b-blue)}
+#tab-compra .b-low{background:#0d7373;color:#fff;border-color:#0d7373}
+#tab-compra .b-evt{background:#f5a524;color:#fff;border-color:#f5a524}
+#tab-compra .b-evt.hoje{background:#c25e00}
+/* Venda / Longo prazo / Exterior: faixa lateral pelo resultado */
+#tab-venda .posblock{border-left:6px solid var(--b-line2)!important;box-shadow:0 2px 8px rgba(11,31,92,.07)}
+#tab-venda .posblock.ps-up{border-left-color:var(--b-grn)!important}
+#tab-venda .posblock.ps-dn{border-left-color:var(--b-red)!important}
+#tab-venda .posblock.ps-hit{background:#effaf4!important;border:1.5px solid var(--b-grn)!important;border-left:6px solid var(--b-grn)!important;box-shadow:0 4px 14px rgba(11,138,82,.18)}
+#tab-venda .posblock.ps-stop{background:#fff3f3!important;border:1.5px solid var(--b-red)!important;border-left:6px solid var(--b-red)!important;box-shadow:0 4px 14px rgba(208,52,63,.16)}
+#tab-venda .posblock b[style*="font-size:16px"]{font-size:18px!important;font-weight:900}
+#tab-venda .posblock .kpi:nth-child(3):has(.v.up){background:#f0faf4;border-color:#b5e2c9}
+#tab-venda .posblock .kpi:nth-child(3):has(.v.dn){background:#fff4f4;border-color:#f5c2c0}
+#tab-venda #posSummary .kpi:has(.v.up),#tab-venda #lpSummary .kpi:has(.v.up),#tab-venda #reportKpis .kpi:has(.v.up){background:#f0faf4;border-color:#b5e2c9}
+#tab-venda #posSummary .kpi:has(.v.dn),#tab-venda #lpSummary .kpi:has(.v.dn),#tab-venda #reportKpis .kpi:has(.v.dn){background:#fff4f4;border-color:#f5c2c0}
+/* Comparativo */
+#tab-venda .cmp-box{border-left:6px solid var(--b-line2);box-shadow:0 2px 8px rgba(11,31,92,.07);padding:16px 18px}
+#tab-venda .cmp-box.cb-win{border-left-color:var(--b-grn)}
+#tab-venda .cmp-box.cb-lose{border-left-color:var(--b-red)}
+#tab-venda .cmp-box.cmp-tot{border:2px solid var(--b-navy)!important;border-left:6px solid var(--b-navy)!important;padding-top:0}
+#tab-venda .cmp-tot .cmp-head{background:var(--b-navy);color:#fff;margin:0 -18px 12px;padding:12px 18px}
+#tab-venda .cmp-tot .cmp-head b{color:#fff}
+#tab-venda .cmp-tot .cmp-head .s{color:#c9d3f0!important}
+#tab-venda .cmp-head b{font-size:18px;font-weight:900}
+#tab-venda .cmp-row.win{background:#fff8dc;border-radius:6px;padding:6px 10px;margin:2px -10px}
+#tab-venda .cmp-row.acao .nm{font-weight:700;color:var(--b-navy)}
+#tab-venda .cmp-row.acao .bar{height:12px}
+#tab-venda .cmp-row.acao .bar i{background:var(--b-navy)}
+#tab-venda .cmp-verd{border-top:0;margin-top:10px;padding:10px 14px;border-radius:6px;font-weight:500}
+#tab-venda .cmp-verd:has(.up){background:#e9f7ef;border:1px solid #b5e2c9}
+#tab-venda .cmp-verd:has(.dn){background:#fdecec;border:1px solid #f5c2c0}
+#tab-venda .cmp-verd .up,#tab-venda .cmp-verd .dn{font-weight:800}
 </style>
 </head>
 <body>
@@ -2345,6 +2402,7 @@ function render(){
     const ts=targetStatus(tk,ind);
     if(ts&&ts.st==='hit')el.classList.add('hit');
     else if(ts&&ts.st==='near')el.classList.add('near');
+    el.classList.add('sc-'+lab.key);
     const tgtBadge=ts&&ts.st==='hit'?'<span class="badge b-hit">🎯 NO ALVO '+fmtR(ts.alvo)+'</span>'
       :ts&&ts.st==='near'?'<span class="badge b-near">a '+ts.dist.toFixed(1)+'% do alvo '+fmtR(ts.alvo)+'</span>'
       :ts?'<span class="badge b-far">a '+ts.dist.toFixed(1)+'% do alvo '+fmtR(ts.alvo)+'</span>':'';
@@ -3312,7 +3370,7 @@ function posBlock(p,i){
   const dtLinha=p.dt
     ?'<div class="s nt" style="margin:-6px 0 10px">comprada em '+fmtD(p.dt)+' · '+tempoDecorrido(p.dt)+'</div>'
     :'<div class="s nt" style="margin:-6px 0 10px">data da compra não informada — <button class="mini" data-pedit="'+i+'" style="padding:1px 8px">editar</button></div>';
-  return '<div class="posblock" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px;background:var(--card)">'
+  return '<div class="posblock '+(hitStop?'ps-stop':hitTgt?'ps-hit':pnl==null?'ps-nt':pnl>=0?'ps-up':'ps-dn')+'" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px;background:var(--card)">'
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">'
       +'<b style="font-size:16px">'+p.tk+'</b>'+flags
       +'<span style="margin-left:auto;display:flex;gap:6px">'
@@ -3879,7 +3937,7 @@ function foreignBlock(p,i){
   const cambioNota=fxc
     ?'dólar na compra R$ '+fxc.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:4})+(p.fxAuto?' (BCB)':' (informado)')
     :'dólar da compra indisponível — R$ aproximado (ignora a variação cambial)';
-  return '<div class="posblock" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px;background:var(--card)">'
+  return '<div class="posblock '+(pnlUsd==null?'ps-nt':pnlUsd>=0?'ps-up':'ps-dn')+'" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px;background:var(--card)">'
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;flex-wrap:wrap">'
       +'<b style="font-size:16px">'+escF(p.tk)+'</b>'+flags
       +'<span style="margin-left:auto;display:flex;gap:6px">'
@@ -4637,11 +4695,11 @@ async function renderCmp(){
   if(temTes)LT.push({k:'tes',nm:'Tesouro Selic',v:soma('tes'),sub:(CMP_CFG.ir?'líquido de IR':'bruto')+' e custódia'});
   if(temIpca)LT.push({k:'ipca',nm:'Inflação (IPCA)',v:soma('ipca'),sub:'poder de compra',ref:true});
   const rfT=LT.filter(l=>l.k!=='acao'&&!l.ref).sort((a,b)=>b.v-a.v)[0];
-  tot.innerHTML=rs.length>1?'<div class="cmp-box" style="border-color:rgba(253,200,47,.35)"><div class="cmp-head"><b>Consolidado</b><span class="s nt">'+rs.length+' posições · '+fmt(V0t)+' investidos</span></div>'
+  tot.innerHTML=rs.length>1?'<div class="cmp-box cmp-tot"><div class="cmp-head"><b>Consolidado</b><span class="s nt">'+rs.length+' posições · '+fmt(V0t)+' investidos</span></div>'
     +cmpLinhasHtml(LT,V0t)+cmpVeredito(LT[0].v,rfT,V0t,'A carteira')+'</div>':'';
   list.innerHTML=semDataHtml+rs.map(r=>{
     const aviso=!r.nDias?'<div class="hint" style="margin:0 0 6px">☀ Comprada em '+fmtD(r.dt)+'. A renda fixa começa a render no próximo dia útil; o comparativo aparece a partir de amanhã.</div>':'';
-    return '<div class="cmp-box"><div class="cmp-head"><b>'+r.tk+'</b>'+(r.lp?'<span class="lpbadge">🌳 longo prazo</span>':'')
+    return '<div class="cmp-box '+(r.acao!=null&&r.melhorRF&&r.nDias?(r.acao>=r.melhorRF.v?'cb-win':'cb-lose'):'')+'"><div class="cmp-head"><b>'+r.tk+'</b>'+(r.lp?'<span class="lpbadge">🌳 longo prazo</span>':'')
       +'<span class="s nt">comprada em '+fmtD(r.dt)+' · '+r.dias+' dia(s) · '+r.nDias+' dia(s) úteis de CDI · '+fmt(r.V0)+' investidos</span></div>'
       +aviso+(r.nDias?cmpLinhasHtml(r.linhas,r.V0)+cmpVeredito(r.acao,r.melhorRF,r.V0,r.tk):'')+'</div>';
   }).join('');
@@ -4677,7 +4735,7 @@ function renderLP(){
       if(r.melhorRF&&r.nDias){const d=r.acao-r.melhorRF.v;vsRf='<div class="kpi"><div class="l">vs. melhor renda fixa</div><div class="v '+(d>=0?'up':'dn')+'">'+sgnFmt(d)+'</div><div class="s nt">'+r.melhorRF.nm+' renderia '+fmt(r.melhorRF.v)+'</div></div>';}
     }
     const cls=v=>v==null?'nt':(v>=0?'up':'dn');
-    return '<div class="posblock" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px">'
+    return '<div class="posblock '+(tot==null?'ps-nt':tot>=0?'ps-up':'ps-dn')+'" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;flex-wrap:wrap"><b style="font-size:16px">'+p.tk+'</b><span class="lpbadge">🌳 longo prazo</span>'
       +'<span style="margin-left:auto;display:flex;gap:6px"><button class="mini" data-lpedit="'+i+'">✎ editar</button><button class="mini" data-lpout="'+i+'" title="voltar para a lista da aba Venda">↩ Venda</button></span></div>'
       +'<div class="s nt" style="margin:0 0 10px">'+(p.dt?'comprada em '+fmtD(p.dt)+' · '+tempoDecorrido(p.dt):'data da compra não informada (necessária para o comparativo)')+'</div>'
